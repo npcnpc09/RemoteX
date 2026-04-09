@@ -2,21 +2,61 @@
 
 **AI-native SSH fleet management: Desktop GUI + Mobile Web Terminal + Claude Code MCP**
 
-The only tool that combines a **visual SSH terminal** (PyQt5), a **Claude Code MCP server** (38 tools), a **mobile web terminal** (xterm.js), and an **AI Chat** for natural language server management -- all in one package.
+Manage hundreds of SSH servers from your desktop or phone. RemoteX combines a **PyQt5 desktop GUI**, a **mobile web terminal**, **AI-powered natural language control**, and a **Claude Code MCP server** with 38 tools -- all in one package.
 
-## Screenshots
+---
 
-### Web Terminal & AI Chat (Desktop Browser)
+## Desktop Web Interface
 
-| Login | Server List | Terminal | AI Chat |
-|:---:|:---:|:---:|:---:|
-| ![Login](screenshots/web-login.png) | ![Servers](screenshots/web-servers.png) | ![Terminal](screenshots/web-terminal.png) | ![AI Chat](screenshots/web-ai-chat.png) |
+### Login
 
-### Mobile Web Terminal (Phone)
+Secure authentication protects your server fleet. Access the web terminal at `http://<ip>:9876/terminal` from any browser. The cyberpunk-styled login page supports Basic Auth with configurable credentials.
 
-| Server List | SSH Terminal | AI Chat |
-|:---:|:---:|:---:|
-| ![Servers](screenshots/mobile-servers.png) | ![Terminal](screenshots/mobile-terminal.png) | ![AI Chat](screenshots/mobile-ai-chat.png) |
+![Web Login](screenshots/web-login.png)
+
+### Server Browser
+
+After login, the **Servers** tab displays all configured servers organized by group. The top navigation bar provides quick switching between Servers, Terminals, and AI Chat. A search box lets you filter servers by name, IP, or group. Click any server card to instantly open an SSH connection -- no need to start the desktop GUI first.
+
+![Web Server List](screenshots/web-servers.png)
+
+### Web SSH Terminal
+
+The **Terminals** tab provides a full xterm.js terminal with 256-color support, tab completion, and cursor control. Multiple servers can be opened as tabs simultaneously. Each tab maintains an independent SSH session. The tab bar at the top shows all open connections with close buttons for easy session management.
+
+![Web Terminal](screenshots/web-terminal.png)
+
+### AI Chat (Desktop)
+
+The **AI Chat** tab lets you manage servers using natural language. Type a request like "Show memory on SMAPP1" and the AI automatically opens SSH connections, executes commands, and returns a formatted summary. Results are displayed in a clean chat interface with tables and status indicators. Powered by Claude CLI, it can handle complex multi-server operations in a single request.
+
+![Web AI Chat](screenshots/web-ai-chat.png)
+
+---
+
+## Mobile Interface
+
+All features work seamlessly on mobile phones. The responsive design adapts to small screens with touch-friendly controls.
+
+### Mobile Server Browser
+
+The mobile server list shows all configured servers grouped by category. Green dots indicate available servers. Tap a server name to connect. The search bar at the top filters the list as you type. The interface loads all servers from `ssh_config.json` directly -- the desktop GUI doesn't need to be running.
+
+![Mobile Servers](screenshots/mobile-servers.png)
+
+### Mobile SSH Terminal
+
+A full SSH terminal on your phone. The xterm.js terminal supports input, backspace, arrow keys, and tab completion. A quick command bar at the bottom provides one-tap access to common commands: `ls`, `df`, `free`, `top`, `docker`, `uptime`, `pwd`, and `Ctrl+C`. Multiple terminal tabs can be opened simultaneously, each with its own SSH session.
+
+![Mobile Terminal](screenshots/mobile-terminal.png)
+
+### Mobile AI Chat
+
+The most powerful feature for mobile: manage your entire server fleet with natural language from your phone. In this example, the user types "open co3s sedu4 server" and the AI automatically finds the matching server, opens an SSH connection, and confirms success. Then the user sends "cd /var/log" and the AI executes it across servers and reports the results with status indicators. No typing SSH commands on a tiny keyboard -- just describe what you want in plain language.
+
+![Mobile AI Chat](screenshots/mobile-ai-chat.png)
+
+---
 
 ## Features
 
@@ -47,7 +87,7 @@ The only tool that combines a **visual SSH terminal** (PyQt5), a **Claude Code M
 |   38 tools        | -------- ssh2 -------> | Servers    |
 |   bridge.js       |                         | (N hosts)  |
 +-------------------+                         +-----------+
-        
+
 +-------------------+     WebSocket (9877)    +------------------+
 |   Mobile Browser  | <---------------------> |   RemoteX.py     |
 |   xterm.js        |                         |   Web Terminal   |
@@ -104,7 +144,7 @@ http://<your-pc-ip>:9876/terminal
 Three tabs available:
 - **Servers** -- browse and connect to any configured server
 - **Terminals** -- multi-tab xterm.js SSH terminal with quick commands
-- **AI Chat** -- natural language server management ("check disk on all SMAPP servers")
+- **AI Chat** -- natural language server management
 
 ### 5. Register MCP with Claude Code
 
@@ -112,36 +152,24 @@ Three tabs available:
 claude mcp add remotex node /path/to/RemoteX/src/mcp-server.js
 ```
 
-## Mobile Web Terminal
+## AI Chat Examples
 
-Access from any device on the same network via `http://<ip>:9876/terminal`.
+The AI Chat works on both desktop and mobile. Just describe what you want:
 
-**Features:**
-- Login with Basic Auth (configurable)
-- Browse all configured servers with search/filter
-- Multi-tab SSH terminals (open multiple servers simultaneously)
-- xterm.js with full terminal emulation (colors, cursor, tab completion)
-- Quick command bar (ls, df, free, top, docker, Ctrl+C, Tab)
-- Independent SSH connections (doesn't affect desktop GUI)
-- Responsive design optimized for mobile screens
-
-## AI Chat
-
-Natural language server management powered by Claude. Available in both desktop GUI and mobile web.
-
-**Examples:**
 ```
-"Check disk usage on all SMAPP servers"
-"Show memory on SMAPP1"
-"Open the sedu4 server on co3s"
-"Restart nginx on all production servers"
-"List running docker containers"
+"Check disk usage on all SMAPP servers"     -> runs df -h on all matching servers
+"Show memory on SMAPP1"                      -> runs free -m and summarizes
+"Open the sedu4 server"                      -> finds and connects to the server
+"Restart nginx on all production servers"    -> opens connections + restarts
+"List running docker containers"             -> runs docker ps across fleet
+"cd /var/log"                                -> executes on connected servers
 ```
 
 The AI will automatically:
-1. Open SSH connections if needed
-2. Execute the appropriate commands
-3. Summarize results in a mobile-friendly format
+1. Find matching servers from your configuration
+2. Open SSH connections if none are active
+3. Execute the appropriate commands
+4. Summarize results in a mobile-friendly format with status indicators
 
 ## MCP Tools (38)
 
@@ -203,51 +231,21 @@ The AI will automatically:
 
 When running RemoteX.py, an HTTP API server starts on port 9876.
 
-### Read Operations
 ```bash
+# Read
 curl -u admin:password http://localhost:9876/sessions
 curl -u admin:password http://localhost:9876/servers
 curl -u admin:password "http://localhost:9876/output?server=SERVER&lines=50"
 curl -u admin:password "http://localhost:9876/exec?server=SERVER&command=hostname&wait=2"
-```
 
-### Write Operations
-```bash
+# Write
 curl -u admin:password -X POST http://localhost:9876/send -d '{"server":"SERVER","command":"df -h"}'
 curl -u admin:password -X POST http://localhost:9876/broadcast -d '{"command":"uptime"}'
 curl -u admin:password -X POST http://localhost:9876/open -d '{"filter":"KEYWORD"}'
 curl -u admin:password -X POST http://localhost:9876/exec_all -d '{"command":"hostname","wait":3}'
-```
 
-### Web Terminal
-```
-GET /terminal    -- Mobile web terminal (no auth required for page load)
-```
-
-## Typical Workflows
-
-### Batch config modification
-```
-1. ssh_batch_read_file        -> Read config from all servers
-2. ssh_diff_files             -> Check for drift
-3. ssh_batch_replace_in_file  -> Apply change
-4. ssh_batch_read_file        -> Verify
-5. ssh_exec_batch             -> Restart services
-```
-
-### Fleet health monitoring
-```
-1. ssh_batch_health_check     -> CPU/mem/disk overview
-2. ssh_process_list           -> Investigate high-load server
-3. ssh_docker_status          -> Check container health
-4. ssh_tail_log               -> Read error logs
-```
-
-### Mobile AI management
-```
-"Check disk on all SMAPP servers"   -> AI runs df -h on matching servers
-"Restart nginx on prod-01"          -> AI opens connection + restarts
-"Show top processes on server X"    -> AI runs top and summarizes
+# Web terminal (no auth for page load)
+GET /terminal
 ```
 
 ## Configuration
@@ -287,77 +285,29 @@ npx remotex batch-replace <group> <path> <old> <new>  # Batch replace
 
 ### Same Network (LAN)
 
-Mobile and PC on the same WiFi/network:
-
 1. Open firewall ports on PC:
 ```bash
 netsh advfirewall firewall add rule name="RemoteX HTTP" dir=in action=allow protocol=TCP localport=9876
 netsh advfirewall firewall add rule name="RemoteX WebSocket" dir=in action=allow protocol=TCP localport=9877
 ```
 
-2. Find your PC's local IP:
-```bash
-ipconfig    # Look for 192.168.x.x or 10.x.x.x
-```
+2. Access from phone: `http://192.168.x.x:9876/terminal`
 
-3. Access from phone:
-```
-http://192.168.x.x:9876/terminal
-```
+### Remote Access (Any Network)
 
-### Remote Access (Different Network / Internet)
+To access RemoteX from anywhere (different WiFi, cellular, remote location), use **[Tailscale](https://tailscale.com)** -- a free mesh VPN that creates a secure encrypted tunnel between your devices.
 
-To access RemoteX from anywhere (different WiFi, cellular, remote location), use **[Tailscale](https://tailscale.com)** -- a free mesh VPN that creates a secure tunnel between your devices.
+1. **Install Tailscale** on PC (`winget install Tailscale.Tailscale`) and phone ([iOS](https://apps.apple.com/app/tailscale/id1470499037) / [Android](https://play.google.com/store/apps/details?id=com.tailscale.ipn))
+2. **Login with the same account** on both devices
+3. **Access from anywhere:** `http://100.x.x.x:9876/terminal`
 
-#### Setup
+Why Tailscale:
+- Zero config -- no port forwarding, no public IP needed
+- End-to-end encrypted (WireGuard)
+- Works through NAT, firewalls, cellular networks
+- Free for personal use
 
-1. **Install Tailscale on PC:**
-```bash
-winget install Tailscale.Tailscale
-```
-
-2. **Install Tailscale on phone:**
-   - iOS: [App Store](https://apps.apple.com/app/tailscale/id1470499037)
-   - Android: [Google Play](https://play.google.com/store/apps/details?id=com.tailscale.ipn)
-
-3. **Login with the same account** on both devices (Google/Microsoft/GitHub)
-
-4. **Find your PC's Tailscale IP:**
-```bash
-tailscale ip    # Returns 100.x.x.x
-```
-
-5. **Access from phone** (works from anywhere):
-```
-http://100.x.x.x:9876/terminal
-```
-
-#### Why Tailscale?
-
-- **Zero config** -- no port forwarding, no dynamic DNS, no public IP needed
-- **End-to-end encrypted** -- WireGuard-based, traffic never passes through a relay
-- **Works through NAT** -- office firewalls, hotel WiFi, cellular networks
-- **Free** for personal use (up to 100 devices)
-- **Always on** -- once set up, your phone can always reach your PC
-
-#### Alternative: Cloudflare Tunnel
-
-If you have a domain name and prefer HTTPS access:
-
-```bash
-# Install
-winget install Cloudflare.cloudflared
-
-# Create tunnel
-cloudflared tunnel login
-cloudflared tunnel create remotex
-cloudflared tunnel route dns remotex ssh.yourdomain.com
-
-# Run (add to startup for persistence)
-cloudflared tunnel run --url http://localhost:9876 remotex
-```
-
-Then access from anywhere: `https://ssh.yourdomain.com/terminal`
+**Alternative:** [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) for HTTPS access with custom domain.
 
 ## License
 
