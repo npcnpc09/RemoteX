@@ -1229,31 +1229,28 @@ class ChatProcessor:
 
             logger.debug(f"Chat calling claude -p, prompt len: {len(full_prompt)}")
 
-            # Windows 路径转 Git Bash 兼容格式
-            git_bash_unix = git_bash.replace('\\', '/')
-            if git_bash_unix[1] == ':':
-                git_bash_unix = '/' + git_bash_unix[0].lower() + git_bash_unix[2:]
-            claude_unix = cls.claude_cmd_path.replace('\\', '/')
-            if claude_unix[1] == ':':
-                claude_unix = '/' + claude_unix[0].lower() + claude_unix[2:]
-            prompt_unix = prompt_file.replace('\\', '/')
-            if prompt_unix[1] == ':':
-                prompt_unix = '/' + prompt_unix[0].lower() + prompt_unix[2:]
+            # 确保 claude_cmd_path 已找到
+            if not cls.claude_cmd_path:
+                cls._find_claude_cmd()
+            if not cls.claude_cmd_path:
+                return '❌ 找不到 Claude CLI，请设置 CLAUDE_CMD_PATH 环境变量'
 
             # 写 prompt 到文件，用 git bash 读取并传给 claude
             import tempfile
             prompt_file = os.path.join(tempfile.gettempdir(), 'termix_chat.txt')
+            def to_unix_path(p):
+                """Windows 路径转 Git Bash 格式: C:\\foo -> /c/foo"""
+                p = p.replace('\\', '/')
+                if len(p) > 1 and p[1] == ':':
+                    p = '/' + p[0].lower() + p[2:]
+                return p
+
             with open(prompt_file, 'w', encoding='utf-8') as pf:
                 pf.write(full_prompt)
-            prompt_unix = prompt_file.replace('\\', '/')
-            if prompt_unix[1] == ':':
-                prompt_unix = '/' + prompt_unix[0].lower() + prompt_unix[2:]
+            prompt_unix = to_unix_path(prompt_file)
 
-            # 用 git bash 执行（用 claude 而不是 claude.cmd）
-            # git bash 的 npm shim 会处理 .cmd 转发
-            npm_path = os.path.join(os.environ.get('APPDATA', ''), 'npm').replace('\\', '/')
-            if npm_path[1] == ':':
-                npm_path = '/' + npm_path[0].lower() + npm_path[2:]
+            # 用 git bash 执行
+            npm_path = to_unix_path(os.path.join(os.environ.get('APPDATA', ''), 'npm'))
             bash_script = f'''#!/bin/bash
 export CLAUDE_CODE_GIT_BASH_PATH='{git_bash}'
 export PATH="{npm_path}:$PATH"
@@ -1349,9 +1346,14 @@ class XShellAPIHandler(BaseHTTPRequestHandler):
         return False
 
     def _send_401(self):
+        # 如果请求来自 JS fetch（带 X-Requested-With），不发 WWW-Authenticate
+        # 避免浏览器弹出原生认证框，让 JS 自己处理 401
+        is_xhr = self.headers.get('X-Requested-With') == 'XMLHttpRequest'
         self.send_response(401)
-        self.send_header('WWW-Authenticate', 'Basic realm="RemoteX"')
+        if not is_xhr:
+            self.send_header('WWW-Authenticate', 'Basic realm="RemoteX"')
         self.send_header('Content-Type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
         self.wfile.write(b'{"error":"Unauthorized"}')
 
