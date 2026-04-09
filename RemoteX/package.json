@@ -1,0 +1,22 @@
+{
+  "name": "remotex",
+  "version": "0.4.0",
+  "description": "RemoteX MCP Server — 30+ SSH tools for Claude Code, AI-native fleet management",
+  "type": "module",
+  "main": "src/mcp-server.js",
+  "bin": {
+    "remotex": "bin/cli.js"
+  },
+  "scripts": {
+    "start": "node src/mcp-server.js",
+    "dashboard": "node src/dashboard-server.js",
+    "cli": "node bin/cli.js"
+  },
+  "dependencies": {
+    "ssh2": "^1.16.0",
+    "node-fetch": "^3.3.2",
+    "ws": "^8.18.0"
+  },
+  "keywords": ["remotex", "claude-code", "mcp", "ssh", "ai-agent", "server-management", "fleet"],
+  "license": "MIT"
+}

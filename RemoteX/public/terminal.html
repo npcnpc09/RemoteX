@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>RemoteX</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
+<style>
+:root {
+  --bg: #0a0e17; --bg2: #111827; --bg3: #1a2236;
+  --border: #2a3a5c; --text: #e2e8f0; --text2: #94a3b8;
+  --accent: #38bdf8; --green: #22c55e; --red: #ef4444; --orange: #f59e0b; --pink: #f472b6;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow:hidden; }
+body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); display:flex; flex-direction:column; }
+
+/* Login */
+.login-panel { display:flex; align-items:center; justify-content:center; flex:1; }
+.login-box { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:32px 28px; width:320px; max-width:90vw; }
+.login-box h2 { color:var(--accent); font-size:20px; margin-bottom:6px; }
+.login-box p { color:var(--text2); font-size:13px; margin-bottom:20px; }
+.login-box input { width:100%; padding:10px 12px; margin-bottom:12px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:14px; outline:none; }
+.login-box input:focus { border-color:var(--accent); }
+.login-box .btn-login { width:100%; padding:10px; background:var(--accent); color:#000; border:none; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; }
+.login-error { color:var(--red); font-size:12px; margin-top:8px; display:none; }
+
+/* Header + Nav */
+.header { background:var(--bg2); border-bottom:1px solid var(--border); padding:8px 12px; display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.logo { font-size:16px; font-weight:700; color:var(--accent); }
+.nav-tabs { display:flex; gap:2px; flex:1; overflow-x:auto; }
+.nav-tab { padding:6px 14px; font-size:12px; font-weight:600; color:var(--text2); cursor:pointer; border-radius:4px; white-space:nowrap; }
+.nav-tab.active { background:var(--accent); color:#000; }
+.nav-tab:not(.active):active { background:var(--bg3); }
+
+/* Main panels */
+.main-area { flex:1; overflow:hidden; display:flex; flex-direction:column; }
+.panel { display:none; flex:1; flex-direction:column; overflow:hidden; }
+.panel.active { display:flex; }
+
+/* Server list */
+.server-list { padding:12px; overflow-y:auto; flex:1; }
+.group-name { font-size:12px; font-weight:600; color:var(--accent); margin:12px 0 6px; padding-bottom:4px; border-bottom:1px solid var(--border); }
+.server-card { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:6px; cursor:pointer; display:flex; align-items:center; gap:8px; }
+.server-card:active { border-color:var(--accent); }
+.server-card .dot { width:8px; height:8px; border-radius:50%; background:var(--green); flex-shrink:0; }
+.server-card .info { flex:1; min-width:0; }
+.server-card .name { font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.server-card .host { font-size:11px; color:var(--text2); }
+.server-card .arrow { color:var(--text2); font-size:16px; }
+
+/* Terminal tabs */
+.term-tabs { display:flex; background:var(--bg2); border-bottom:1px solid var(--border); overflow-x:auto; flex-shrink:0; }
+.term-tab { padding:6px 12px; font-size:12px; color:var(--text2); cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; display:flex; align-items:center; gap:6px; }
+.term-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.term-tab .close { font-size:14px; color:var(--text2); cursor:pointer; padding:0 2px; }
+.term-tab .close:active { color:var(--red); }
+.term-container { flex:1; position:relative; overflow:hidden; }
+.term-instance { position:absolute; top:0; left:0; right:0; bottom:0; padding:4px; display:none; }
+.term-instance.active { display:block; }
+
+/* Quick bar */
+.quick-bar { background:var(--bg2); border-top:1px solid var(--border); padding:6px 8px; display:flex; gap:4px; overflow-x:auto; flex-shrink:0; }
+.quick-btn { background:var(--bg3); border:1px solid var(--border); color:var(--text); padding:5px 10px; border-radius:4px; font-size:11px; white-space:nowrap; cursor:pointer; flex-shrink:0; }
+.quick-btn:active { background:var(--accent); color:#000; }
+
+/* Chat */
+.chat-messages { flex:1; overflow-y:auto; padding:12px; }
+.chat-msg { margin-bottom:12px; max-width:90%; }
+.chat-msg.user { margin-left:auto; }
+.chat-msg.assistant { margin-right:auto; }
+.chat-bubble { padding:10px 14px; border-radius:12px; font-size:13px; line-height:1.5; white-space:pre-wrap; word-break:break-word; }
+.chat-msg.user .chat-bubble { background:var(--accent); color:#000; border-bottom-right-radius:4px; }
+.chat-msg.assistant .chat-bubble { background:var(--bg2); border:1px solid var(--border); border-bottom-left-radius:4px; }
+.chat-time { font-size:10px; color:var(--text2); margin-top:2px; padding:0 4px; }
+.chat-msg.user .chat-time { text-align:right; }
+.chat-input-bar { background:var(--bg2); border-top:1px solid var(--border); padding:8px; display:flex; gap:8px; flex-shrink:0; }
+.chat-input { flex:1; padding:10px 12px; background:var(--bg); border:1px solid var(--border); border-radius:20px; color:var(--text); font-size:14px; outline:none; }
+.chat-input:focus { border-color:var(--accent); }
+.chat-send { background:var(--accent); color:#000; border:none; border-radius:50%; width:38px; height:38px; font-size:18px; cursor:pointer; flex-shrink:0; }
+.chat-send:disabled { opacity:0.4; }
+.chat-typing { padding:8px 12px; color:var(--text2); font-size:12px; display:none; }
+.chat-typing.active { display:block; }
+
+/* Loading / empty */
+.loading { display:flex; align-items:center; justify-content:center; padding:40px; color:var(--text2); font-size:13px; text-align:center; line-height:1.6; }
+.spinner { width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; margin-right:8px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* Search */
+.search-bar { padding:8px 12px; flex-shrink:0; }
+.search-input { width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:13px; outline:none; }
+.search-input:focus { border-color:var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div class="login-panel" id="login-panel">
+  <div class="login-box">
+    <h2>RemoteX</h2>
+    <p>AI-Powered SSH Fleet Manager</p>
+    <input type="text" id="login-user" placeholder="Username" value="admin" autocomplete="username">
+    <input type="password" id="login-pass" placeholder="Password" autocomplete="current-password">
+    <button class="btn-login" onclick="doLogin()">Login</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- Main App (hidden until login) -->
+<div id="app" style="display:none;flex:1;display:none;flex-direction:column">
+
+  <!-- Header -->
+  <div class="header">
+    <span class="logo">RemoteX</span>
+    <div class="nav-tabs">
+      <div class="nav-tab active" data-panel="servers" onclick="switchPanel('servers')">Servers</div>
+      <div class="nav-tab" data-panel="terminals" onclick="switchPanel('terminals')">Terminals</div>
+      <div class="nav-tab" data-panel="chat" onclick="switchPanel('chat')">AI Chat</div>
+    </div>
+  </div>
+
+  <div class="main-area">
+
+    <!-- Panel: Servers -->
+    <div class="panel active" id="panel-servers">
+      <div class="search-bar">
+        <input class="search-input" id="search-input" placeholder="Search servers..." oninput="filterServers()">
+      </div>
+      <div class="server-list" id="server-list">
+        <div class="loading"><div class="spinner"></div>Loading...</div>
+      </div>
+    </div>
+
+    <!-- Panel: Terminals -->
+    <div class="panel" id="panel-terminals">
+      <div class="term-tabs" id="term-tabs">
+        <div style="padding:8px 12px;color:var(--text2);font-size:12px" id="no-terms">No open terminals</div>
+      </div>
+      <div class="term-container" id="term-container"></div>
+      <div class="quick-bar">
+        <button class="quick-btn" onclick="sendQuick('ls -la\n')">ls</button>
+        <button class="quick-btn" onclick="sendQuick('df -h\n')">df</button>
+        <button class="quick-btn" onclick="sendQuick('free -m\n')">free</button>
+        <button class="quick-btn" onclick="sendQuick('top -bn1|head -20\n')">top</button>
+        <button class="quick-btn" onclick="sendQuick('docker ps\n')">docker</button>
+        <button class="quick-btn" onclick="sendQuick('uptime\n')">uptime</button>
+        <button class="quick-btn" onclick="sendQuick('pwd\n')">pwd</button>
+        <button class="quick-btn" onclick="sendQuick('\x03')">^C</button>
+        <button class="quick-btn" onclick="sendQuick('\t')">Tab</button>
+      </div>
+    </div>
+
+    <!-- Panel: AI Chat -->
+    <div class="panel" id="panel-chat">
+      <div class="chat-messages" id="chat-messages">
+        <div class="chat-msg assistant">
+          <div class="chat-bubble">Hi! I'm RemoteX AI assistant. Tell me what you want to do with your servers in natural language. For example:<br><br>- "Check disk usage on all SMAPP servers"<br>- "Show memory on SMAPP1"<br>- "List running docker containers on all servers"</div>
+        </div>
+      </div>
+      <div class="chat-typing" id="chat-typing"><div class="spinner" style="display:inline-block;vertical-align:middle"></div> AI is thinking...</div>
+      <div class="chat-input-bar">
+        <input class="chat-input" id="chat-input" placeholder="Ask AI to manage servers..." autocomplete="off">
+        <button class="chat-send" id="chat-send" onclick="sendChat()">&#9654;</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const HTTP_PORT = location.port || 9876;
+const WS_PORT = parseInt(HTTP_PORT) + 1;
+const API = location.protocol + '//' + location.hostname + ':' + HTTP_PORT;
+const WS_URL = 'ws://' + location.hostname + ':' + WS_PORT;
+
+let authUser = '', authPass = '';
+let allServers = [];
+let terminals = {}; // name -> { ws, term, fitAddon, el }
+let activeTerminal = null;
+
+// ── Login ──
+
+async function doLogin() {
+  authUser = document.getElementById('login-user').value.trim();
+  authPass = document.getElementById('login-pass').value;
+  const err = document.getElementById('login-error');
+  err.style.display = 'none';
+  try {
+    const r = await apiFetch('/servers');
+    if (!r.ok) { err.textContent = 'Invalid credentials'; err.style.display = 'block'; return; }
+    document.getElementById('login-panel').style.display = 'none';
+    const app = document.getElementById('app');
+    app.style.display = 'flex';
+    loadServers();
+    loadChatHistory();
+  } catch (e) {
+    err.textContent = 'Connection failed: ' + e.message;
+    err.style.display = 'block';
+  }
+}
+document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// ── API ──
+
+function apiFetch(path, opts = {}) {
+  opts.headers = { ...opts.headers, 'Authorization': 'Basic ' + btoa(authUser + ':' + authPass) };
+  return fetch(API + path, opts);
+}
+async function apiJson(path, opts = {}) {
+  const r = await apiFetch(path, opts);
+  return r.json();
+}
+async function apiPost(path, body) {
+  return apiJson(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+}
+
+// ── Panel switching ──
+
+function switchPanel(name) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.panel === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+  if (name === 'terminals' && activeTerminal && terminals[activeTerminal]) {
+    setTimeout(() => terminals[activeTerminal].fitAddon.fit(), 50);
+  }
+  if (name === 'chat') {
+    setTimeout(() => {
+      const msgs = document.getElementById('chat-messages');
+      msgs.scrollTop = msgs.scrollHeight;
+      document.getElementById('chat-input').focus();
+    }, 50);
+  }
+}
+
+// ── Servers ──
+
+async function loadServers() {
+  const list = document.getElementById('server-list');
+  try {
+    const data = await apiJson('/servers');
+    allServers = data.servers || [];
+    renderServers(allServers);
+  } catch (e) {
+    list.innerHTML = '<div class="loading">Failed: ' + esc(e.message) + '</div>';
+  }
+}
+
+function renderServers(servers) {
+  const list = document.getElementById('server-list');
+  if (!servers.length) { list.innerHTML = '<div class="loading">No servers configured.</div>'; return; }
+  const groups = {};
+  servers.forEach(s => { const g = s.group || 'Default'; (groups[g] = groups[g] || []).push(s); });
+  let html = '';
+  Object.keys(groups).sort().forEach(g => {
+    html += '<div class="group-name">' + esc(g) + ' (' + groups[g].length + ')</div>';
+    groups[g].forEach(s => {
+      const open = terminals[s.name] ? ' style="border-color:var(--green)"' : '';
+      html += '<div class="server-card"' + open + ' onclick="openTerminal(\'' + esc(s.name) + '\')">';
+      html += '<div class="dot"></div>';
+      html += '<div class="info"><div class="name">' + esc(s.name) + '</div>';
+      html += '<div class="host">' + esc(s.username + '@' + s.host + ':' + s.port) + '</div></div>';
+      html += '<span class="arrow">&rsaquo;</span></div>';
+    });
+  });
+  list.innerHTML = html;
+}
+
+function filterServers() {
+  const q = document.getElementById('search-input').value.trim().toUpperCase();
+  if (!q) { renderServers(allServers); return; }
+  renderServers(allServers.filter(s => s.name.toUpperCase().includes(q) || s.host.includes(q) || (s.group||'').toUpperCase().includes(q)));
+}
+
+// ── Multi-tab Terminals ──
+
+function openTerminal(name) {
+  if (terminals[name]) {
+    // Already open — switch to it
+    switchToTerminal(name);
+    switchPanel('terminals');
+    return;
+  }
+
+  // Create terminal instance
+  const el = document.createElement('div');
+  el.className = 'term-instance';
+  el.id = 'term-' + name;
+  document.getElementById('term-container').appendChild(el);
+
+  const term = new Terminal({
+    cursorBlink: true, fontSize: 14,
+    fontFamily: "'Menlo','Consolas',monospace",
+    theme: { background:'#0a0e17', foreground:'#e2e8f0', cursor:'#38bdf8', selectionBackground:'#38bdf855',
+      black:'#1a2236', red:'#ef4444', green:'#22c55e', yellow:'#f59e0b', blue:'#38bdf8', magenta:'#f472b6', cyan:'#22d3ee', white:'#e2e8f0' },
+    allowProposedApi: true,
+  });
+  const fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  term.loadAddon(new WebLinksAddon.WebLinksAddon());
+  term.open(el);
+
+  const entry = { ws: null, term, fitAddon, el, name };
+  terminals[name] = entry;
+
+  switchToTerminal(name);
+  switchPanel('terminals');
+  setTimeout(() => fitAddon.fit(), 100);
+
+  term.writeln('\x1b[36mConnecting to ' + name + '...\x1b[0m');
+
+  // WebSocket
+  const ws = new WebSocket(WS_URL);
+  ws.binaryType = 'arraybuffer';
+  entry.ws = ws;
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ type:'auth', user:authUser, pass:authPass }));
+  };
+  ws.onmessage = (ev) => {
+    if (ev.data instanceof ArrayBuffer) { term.write(new Uint8Array(ev.data)); return; }
+    try {
+      const msg = JSON.parse(ev.data);
+      if (msg.type === 'auth_ok') {
+        const d = fitAddon ? { cols:term.cols, rows:term.rows } : { cols:120, rows:30 };
+        ws.send(JSON.stringify({ type:'connect', server:name, cols:d.cols, rows:d.rows }));
+      } else if (msg.type === 'connected') {
+        term.writeln('\x1b[32mConnected to ' + msg.server + ' (' + msg.host + ')\x1b[0m\r\n');
+        term.focus();
+      } else if (msg.type === 'error') {
+        term.writeln('\x1b[31mError: ' + msg.message + '\x1b[0m');
+      }
+    } catch (e) { term.write(ev.data); }
+  };
+  ws.onclose = () => { term.writeln('\r\n\x1b[33m--- Disconnected ---\x1b[0m'); };
+  ws.onerror = () => { term.writeln('\r\n\x1b[31m--- Connection error ---\x1b[0m'); };
+
+  term.onData(data => {
+    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type:'input', data }));
+  });
+  term.onResize(({ cols, rows }) => {
+    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type:'resize', cols, rows }));
+  });
+
+  renderTermTabs();
+  renderServers(allServers);
+}
+
+function switchToTerminal(name) {
+  activeTerminal = name;
+  document.querySelectorAll('.term-instance').forEach(el => el.classList.toggle('active', el.id === 'term-' + name));
+  document.querySelectorAll('.term-tab').forEach(t => t.classList.toggle('active', t.dataset.name === name));
+  if (terminals[name]) {
+    setTimeout(() => { terminals[name].fitAddon.fit(); terminals[name].term.focus(); }, 50);
+  }
+}
+
+function closeTerminal(name) {
+  const t = terminals[name];
+  if (!t) return;
+  if (t.ws) t.ws.close();
+  t.term.dispose();
+  t.el.remove();
+  delete terminals[name];
+  if (activeTerminal === name) {
+    const keys = Object.keys(terminals);
+    activeTerminal = keys.length ? keys[keys.length - 1] : null;
+    if (activeTerminal) switchToTerminal(activeTerminal);
+  }
+  renderTermTabs();
+  renderServers(allServers);
+}
+
+function renderTermTabs() {
+  const bar = document.getElementById('term-tabs');
+  const names = Object.keys(terminals);
+  const noTerms = document.getElementById('no-terms');
+  if (!names.length) { bar.innerHTML = ''; bar.appendChild(noTerms); noTerms.style.display = ''; return; }
+  noTerms.style.display = 'none';
+  let html = '';
+  names.forEach(n => {
+    const cls = n === activeTerminal ? ' active' : '';
+    html += '<div class="term-tab' + cls + '" data-name="' + esc(n) + '" onclick="switchToTerminal(\'' + esc(n) + '\')">';
+    html += esc(n) + ' <span class="close" onclick="event.stopPropagation();closeTerminal(\'' + esc(n) + '\')">&times;</span></div>';
+  });
+  bar.innerHTML = html;
+  bar.appendChild(noTerms);
+}
+
+function sendQuick(data) {
+  if (activeTerminal && terminals[activeTerminal]) {
+    const ws = terminals[activeTerminal].ws;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type:'input', data }));
+      terminals[activeTerminal].term.focus();
+    }
+  }
+}
+
+window.addEventListener('resize', () => {
+  if (activeTerminal && terminals[activeTerminal]) terminals[activeTerminal].fitAddon.fit();
+});
+
+// ── AI Chat ──
+
+async function loadChatHistory() {
+  try {
+    const data = await apiPost('/chat/history', {});
+    const msgs = data.history || [];
+    msgs.forEach(m => appendChatMsg(m.role, m.content, m.timestamp));
+  } catch (e) {}
+}
+
+function appendChatMsg(role, text, time) {
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + role;
+  div.innerHTML = '<div class="chat-bubble">' + esc(text) + '</div>' + (time ? '<div class="chat-time">' + esc(time) + '</div>' : '');
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+
+  appendChatMsg('user', msg, new Date().toLocaleTimeString());
+  document.getElementById('chat-typing').classList.add('active');
+  document.getElementById('chat-send').disabled = true;
+
+  try {
+    const data = await apiPost('/chat', { message: msg });
+    const reply = data.reply || data.error || 'No response';
+    appendChatMsg('assistant', reply);
+  } catch (e) {
+    appendChatMsg('assistant', 'Connection error: ' + e.message);
+  } finally {
+    document.getElementById('chat-typing').classList.remove('active');
+    document.getElementById('chat-send').disabled = false;
+  }
+}
+
+document.getElementById('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
+
+// ── Helpers ──
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+</script>
+</body>
+</html>

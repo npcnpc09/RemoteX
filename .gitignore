@@ -1,0 +1,16 @@
+node_modules/
+*.log
+.env
+ssh_config.json
+~/.remotex.json
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+Thumbs.db
+*.bak
+logs/
+exec_output.json
+raw_output.json
+RemoteX/ip.txt
+RemoteX/servers.txt

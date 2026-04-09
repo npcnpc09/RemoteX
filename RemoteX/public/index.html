@@ -1,0 +1,1806 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TERMIX-CC Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
+<style>
+:root {
+  --bg: #0a0e17;
+  --bg2: #111827;
+  --bg3: #1a2236;
+  --border: #2a3a5c;
+  --text: #e2e8f0;
+  --text2: #94a3b8;
+  --accent: #38bdf8;
+  --accent2: #818cf8;
+  --green: #22c55e;
+  --red: #ef4444;
+  --orange: #f59e0b;
+  --pink: #f472b6;
+  --radius: 8px;
+  --shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Header ── */
+.header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-left { display:flex; align-items:center; gap:16px; }
+.logo {
+  font-size: 20px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 1px;
+}
+.ws-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text2);
+}
+.ws-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  transition: background .3s;
+}
+.ws-dot.connected { background: var(--green); }
+.header-right { display:flex; align-items:center; gap:12px; }
+.stats-bar {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text2);
+}
+.stats-bar span strong { color: var(--text); }
+.btn {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg3);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all .2s;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight:600; }
+.btn.primary:hover { opacity:.85; }
+.btn.danger { border-color: var(--red); color: var(--red); }
+.btn.danger:hover { background: var(--red); color: #fff; }
+
+/* ── Layout ── */
+.container {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: calc(100vh - 53px);
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  padding: 16px 0;
+  overflow-y: auto;
+}
+.sidebar-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text2);
+  padding: 8px 16px 6px;
+}
+.group-item {
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background .15s;
+}
+.group-item:hover { background: var(--bg3); }
+.group-item.active { background: var(--bg3); color: var(--accent); border-left: 3px solid var(--accent); }
+.group-count {
+  background: var(--bg);
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--text2);
+}
+
+/* ── Main ── */
+.main { padding: 20px; overflow-y: auto; }
+
+/* ── Tabs ── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+.tab {
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text2);
+  border-bottom: 2px solid transparent;
+  transition: all .2s;
+  margin-bottom: -1px;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── Server Grid ── */
+.server-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+.server-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  cursor: pointer;
+  transition: all .2s;
+  position: relative;
+  overflow: hidden;
+}
+.server-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: var(--shadow); }
+.server-card.offline { opacity:.6; }
+.server-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.server-name { font-weight: 600; font-size: 15px; word-break: break-all; }
+.server-host { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.status-badge {
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  flex-shrink: 0;
+}
+.status-badge.online { background: rgba(34,197,94,.15); color: var(--green); }
+.status-badge.offline { background: rgba(239,68,68,.15); color: var(--red); }
+.server-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.metric {
+  text-align: center;
+}
+.metric-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+.metric-bar {
+  height: 4px;
+  background: var(--bg);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.metric-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .5s;
+}
+.metric-bar-fill.cpu { background: var(--accent); }
+.metric-bar-fill.mem { background: var(--accent2); }
+.metric-bar-fill.disk { background: var(--orange); }
+.metric-bar-fill.high { background: var(--red); }
+.metric-value { font-size: 13px; font-weight: 600; }
+.agent-badge {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  padding: 3px 10px;
+  font-size: 11px;
+  text-align: center;
+  background: rgba(129,140,248,.2);
+  color: var(--accent2);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.5;} }
+
+/* ── Server Detail Panel ── */
+.detail-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 200;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 60px;
+}
+.detail-overlay.show { display: flex; }
+.detail-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 700px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+}
+.detail-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.detail-header h2 { font-size: 18px; }
+.detail-close {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg3);
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.detail-close:hover { color: var(--text); }
+.detail-body { padding: 20px 24px; }
+.detail-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.info-item { font-size: 13px; }
+.info-item label { color: var(--text2); display: block; margin-bottom: 2px; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+.info-item span { font-weight: 500; }
+.detail-section { margin-bottom: 20px; }
+.detail-section h3 {
+  font-size: 14px;
+  color: var(--text2);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.service-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.service-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all .2s;
+}
+.service-tag:hover { border-color: var(--accent); }
+.service-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+}
+.service-dot.active { background: var(--green); }
+.service-dot.failed { background: var(--red); }
+.service-actions {
+  display: none;
+  gap: 4px;
+  margin-left: 4px;
+}
+.service-tag:hover .service-actions { display: flex; }
+.svc-btn {
+  padding: 1px 6px;
+  border: none;
+  border-radius: 4px;
+  font-size: 10px;
+  cursor: pointer;
+  background: var(--bg);
+  color: var(--text2);
+}
+.svc-btn:hover { color: var(--text); }
+.svc-btn.restart { color: var(--orange); }
+.svc-btn.stop { color: var(--red); }
+
+/* ── Terminal ── */
+.terminal-section { margin-top: 16px; }
+.terminal-input-wrap {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.terminal-input-wrap input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 13px;
+  outline: none;
+}
+.terminal-input-wrap input:focus { border-color: var(--accent); }
+.terminal-output {
+  background: #000;
+  border-radius: var(--radius);
+  padding: 12px;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  max-height: 250px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #a0f0a0;
+}
+
+/* ── Batch Exec Panel ── */
+.batch-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.batch-panel h3 { font-size: 15px; margin-bottom: 12px; }
+.batch-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label { font-size: 12px; color: var(--text2); }
+.form-group select, .form-group input {
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  min-width: 160px;
+}
+.form-group select:focus, .form-group input:focus { border-color: var(--accent); }
+.batch-results {
+  margin-top: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.batch-result-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+.batch-result-item:last-child { border-bottom: none; }
+.batch-result-item .code0 { color: var(--green); }
+.batch-result-item .code-fail { color: var(--red); }
+
+/* ── Log Panel ── */
+.log-panel {
+  background: #000;
+  border-radius: var(--radius);
+  padding: 12px;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  max-height: 500px;
+  overflow-y: auto;
+}
+.log-entry { display: flex; gap: 8px; }
+.log-ts { color: #555; flex-shrink: 0; }
+.log-source { color: var(--accent); min-width: 70px; flex-shrink: 0; }
+.log-msg { word-break: break-all; }
+.log-entry.info .log-msg { color: #ccc; }
+.log-entry.ok .log-msg { color: var(--green); }
+.log-entry.error .log-msg { color: var(--red); }
+.log-entry.warn .log-msg { color: var(--orange); }
+.log-entry.claude .log-msg { color: var(--pink); }
+
+/* ── Deploy Panel ── */
+.deploy-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.deploy-form .full { grid-column: 1 / -1; }
+.deploy-progress {
+  background: var(--bg3);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+  display: none;
+}
+.deploy-progress.active { display: block; }
+.deploy-progress-bar {
+  height: 8px;
+  background: var(--bg);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+.deploy-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 4px;
+  transition: width .5s;
+  width: 0%;
+}
+.deploy-phase {
+  font-size: 13px;
+  color: var(--text2);
+}
+.deploy-results {
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+/* ── Search ── */
+.search-bar {
+  margin-bottom: 16px;
+}
+.search-bar input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg2);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+}
+.search-bar input:focus { border-color: var(--accent); }
+.search-bar input::placeholder { color: var(--text2); }
+
+/* ── Responsive ── */
+@media (max-width: 800px) {
+  .container { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .server-grid { grid-template-columns: 1fr; }
+  .detail-panel { width: 95%; }
+  .deploy-form { grid-template-columns: 1fr; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text2); }
+
+/* Tab content */
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ── Terminal Tab ── */
+.terminal-tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  overflow-x: auto;
+  min-height: 38px;
+}
+.terminal-tab-bar::-webkit-scrollbar { height: 0; }
+.term-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--text2);
+  cursor: pointer;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  transition: all .15s;
+  user-select: none;
+}
+.term-tab:hover { background: var(--bg3); color: var(--text); }
+.term-tab.active { background: var(--bg2); color: var(--accent); }
+.term-tab .term-tab-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  flex-shrink: 0;
+}
+.term-tab .term-tab-close {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.term-tab .term-tab-close:hover { background: var(--red); color: #fff; }
+.term-new-btn {
+  padding: 8px 14px;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 16px;
+  transition: color .15s;
+  flex-shrink: 0;
+}
+.term-new-btn:hover { color: var(--accent); }
+.terminal-container {
+  background: #000;
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  position: relative;
+  height: calc(100vh - 220px);
+  min-height: 400px;
+}
+.terminal-container .xterm {
+  padding: 4px;
+}
+.term-connect-panel {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: rgba(0,0,0,.95);
+  z-index: 10;
+}
+.term-connect-panel h3 {
+  font-size: 18px;
+  color: var(--text);
+  font-weight: 500;
+}
+.term-connect-panel p {
+  font-size: 13px;
+  color: var(--text2);
+  max-width: 400px;
+  text-align: center;
+}
+.term-connect-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.term-connect-row select {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg2);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  min-width: 220px;
+}
+.term-connect-row select:focus { border-color: var(--accent); }
+.term-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  font-size: 12px;
+  color: var(--text2);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text2);
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; }
+
+/* Loading spinner */
+.spinner {
+  display: inline-block;
+  width: 16px; height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">TERMIX-CC</div>
+    <div class="ws-status">
+      <div class="ws-dot" id="wsDot"></div>
+      <span id="wsLabel">Disconnected</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="stats-bar">
+      <span>Servers: <strong id="statTotal">0</strong></span>
+      <span>Online: <strong id="statOnline" style="color:var(--green)">0</strong></span>
+      <span>Offline: <strong id="statOffline" style="color:var(--red)">0</strong></span>
+    </div>
+    <button class="btn" onclick="refreshServers()">Refresh</button>
+  </div>
+</div>
+
+<!-- Layout -->
+<div class="container">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-title">Server Groups</div>
+    <div id="groupList">
+      <div class="group-item active" data-group="__all" onclick="selectGroup(this, '__all')">
+        All Servers <span class="group-count" id="groupCountAll">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" data-tab="terminal" onclick="switchTab('terminal')">Terminal</div>
+      <div class="tab" data-tab="servers" onclick="switchTab('servers')">Servers</div>
+      <div class="tab" data-tab="batch" onclick="switchTab('batch')">Batch Exec</div>
+      <div class="tab" data-tab="deploy" onclick="switchTab('deploy')">Deploy</div>
+      <div class="tab" data-tab="manage" onclick="switchTab('manage')">Server Mgmt</div>
+      <div class="tab" data-tab="logs" onclick="switchTab('logs')">Logs</div>
+    </div>
+
+    <!-- Tab: Terminal -->
+    <div class="tab-content active" id="tab-terminal">
+      <div class="terminal-tab-bar" id="termTabBar">
+        <div class="term-new-btn" onclick="openNewTerminal()" title="New Terminal">+</div>
+      </div>
+      <div class="terminal-container" id="termContainer">
+        <div class="term-connect-panel" id="termConnectPanel">
+          <h3>SSH Terminal</h3>
+          <p>Select a server and click Connect to open an interactive shell session</p>
+          <div class="term-connect-row">
+            <select id="termServerSelect">
+              <option value="">-- Select Server --</option>
+            </select>
+            <button class="btn primary" onclick="openNewTerminal()">Connect</button>
+          </div>
+        </div>
+      </div>
+      <div class="term-status-bar" id="termStatusBar">
+        <span id="termStatusLeft">No active session</span>
+        <span id="termStatusRight"></span>
+      </div>
+    </div>
+
+    <!-- Tab: Servers -->
+    <div class="tab-content" id="tab-servers">
+      <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Search servers by name, host, or group..." oninput="renderServers()">
+      </div>
+      <div class="server-grid" id="serverGrid"></div>
+    </div>
+
+    <!-- Tab: Batch Exec -->
+    <div class="tab-content" id="tab-batch">
+      <div class="batch-panel">
+        <h3>Batch Command Execution</h3>
+        <div class="batch-row">
+          <div class="form-group">
+            <label>Target Group</label>
+            <select id="batchGroup"></select>
+          </div>
+          <div class="form-group" style="flex:1">
+            <label>Command</label>
+            <input type="text" id="batchCmd" placeholder="e.g. uptime, df -h, systemctl status nginx">
+          </div>
+          <button class="btn primary" onclick="execBatch()">Execute</button>
+        </div>
+        <div class="batch-results" id="batchResults"></div>
+      </div>
+    </div>
+
+    <!-- Tab: Deploy -->
+    <div class="tab-content" id="tab-deploy">
+      <div class="batch-panel">
+        <h3>Canary Deployment</h3>
+        <div class="deploy-form">
+          <div class="form-group">
+            <label>Target Group</label>
+            <select id="deployGroup"></select>
+          </div>
+          <div class="form-group">
+            <label>Canary Server</label>
+            <select id="deployCanary"></select>
+          </div>
+          <div class="form-group full">
+            <label>Deploy Command</label>
+            <input type="text" id="deployCmd" placeholder="e.g. cd /opt/app && git pull && systemctl restart app">
+          </div>
+          <div class="form-group full">
+            <label>Rollback Command</label>
+            <input type="text" id="deployRollback" placeholder="e.g. cd /opt/app && git checkout HEAD~1 && systemctl restart app">
+          </div>
+          <div class="form-group full">
+            <label>Post-Check Command (verify health)</label>
+            <input type="text" id="deployCheck" placeholder="e.g. curl -sf http://localhost:8080/health">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn primary" onclick="startDeploy()">Start Canary Deploy</button>
+          <button class="btn danger" onclick="abortDeploy()">Abort</button>
+        </div>
+        <div class="deploy-progress" id="deployProgress">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong id="deployPhase">Phase: precheck</strong>
+            <span id="deployPct">0%</span>
+          </div>
+          <div class="deploy-progress-bar">
+            <div class="deploy-progress-fill" id="deployFill"></div>
+          </div>
+          <div class="deploy-results" id="deployResults"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Server Management -->
+    <div class="tab-content" id="tab-manage">
+      <!-- Import from servers.txt -->
+      <div class="batch-panel">
+        <h3>Import from servers.txt</h3>
+        <p style="color:var(--text2);font-size:13px;margin-bottom:12px">
+          One-click import all servers from the local <code>servers.txt</code> file (format: name,host,port,user,password,group)
+        </p>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn primary" onclick="importFromFile()">Import servers.txt</button>
+          <span id="importFileResult" style="font-size:13px"></span>
+        </div>
+      </div>
+
+      <!-- Paste CSV Import -->
+      <div class="batch-panel" style="margin-top:16px">
+        <h3>Paste CSV Import</h3>
+        <p style="color:var(--text2);font-size:13px;margin-bottom:12px">
+          Paste CSV data, one server per line: <code>name,host,port,username,password,group</code>
+        </p>
+        <textarea id="csvImport" rows="5" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:monospace;font-size:13px;resize:vertical;outline:none" placeholder="server1,10.0.1.1,22,root,password,production&#10;server2,10.0.1.2,22,root,password,production"></textarea>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+          <button class="btn primary" onclick="importCSV()">Import CSV</button>
+          <span id="importCsvResult" style="font-size:13px"></span>
+        </div>
+      </div>
+
+      <!-- Add Single Server -->
+      <div class="batch-panel" style="margin-top:16px">
+        <h3>Add Server</h3>
+        <div class="deploy-form" style="margin-bottom:0">
+          <div class="form-group">
+            <label>Server Name</label>
+            <input type="text" id="addName" placeholder="e.g. prod-01">
+          </div>
+          <div class="form-group">
+            <label>Host</label>
+            <input type="text" id="addHost" placeholder="e.g. 10.0.1.1">
+          </div>
+          <div class="form-group">
+            <label>Port</label>
+            <input type="number" id="addPort" value="22">
+          </div>
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="addUser" value="root">
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="addPass" placeholder="password">
+          </div>
+          <div class="form-group">
+            <label>Group</label>
+            <input type="text" id="addGroup" placeholder="e.g. production">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+          <button class="btn primary" onclick="addServer()">Add Server</button>
+          <span id="addResult" style="font-size:13px"></span>
+        </div>
+      </div>
+
+      <!-- Server Config List -->
+      <div class="batch-panel" style="margin-top:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 style="margin:0">Configured Servers (<span id="configCount">0</span>)</h3>
+          <div style="display:flex;gap:8px">
+            <button class="btn" onclick="loadConfigList()">Reload</button>
+            <button class="btn danger" onclick="clearAllServers()">Clear All</button>
+          </div>
+        </div>
+        <input type="text" id="configSearch" placeholder="Search configured servers..." oninput="filterConfigList()" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;outline:none;margin-bottom:10px">
+        <div id="configList" style="max-height:400px;overflow-y:auto"></div>
+      </div>
+    </div>
+
+    <!-- Tab: Logs -->
+    <div class="tab-content" id="tab-logs">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-size:14px;color:var(--text2)">Real-time event log</span>
+        <button class="btn" onclick="clearLogs()">Clear</button>
+      </div>
+      <div class="log-panel" id="logPanel"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Server Detail Overlay -->
+<div class="detail-overlay" id="detailOverlay" onclick="if(event.target===this)closeDetail()">
+  <div class="detail-panel">
+    <div class="detail-header">
+      <h2 id="detailTitle">Server</h2>
+      <button class="detail-close" onclick="closeDetail()">&times;</button>
+    </div>
+    <div class="detail-body">
+      <div class="detail-info-grid" id="detailInfo"></div>
+      <div class="detail-section">
+        <h3>Services</h3>
+        <div class="service-list" id="detailServices">
+          <span style="color:var(--text2);font-size:13px">Loading...</span>
+        </div>
+      </div>
+      <div class="terminal-section">
+        <h3 style="font-size:14px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Terminal</h3>
+        <div class="terminal-input-wrap">
+          <input type="text" id="terminalInput" placeholder="Enter command..." onkeydown="if(event.key==='Enter')execTerminal()">
+          <button class="btn primary" onclick="execTerminal()">Run</button>
+        </div>
+        <div class="terminal-output" id="terminalOutput">Ready.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════════════
+const API = `http://${location.hostname}:7700`;
+const WS_URL = `ws://${location.hostname}:7700`;
+let ws = null;
+let servers = [];
+let groups = {};
+let agentStatuses = {};
+let logs = [];
+let selectedGroup = '__all';
+let currentDetailServer = null;
+
+// ═══════════════════════════════════════════════════
+// WebSocket
+// ═══════════════════════════════════════════════════
+function connectWS() {
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => {
+    document.getElementById('wsDot').classList.add('connected');
+    document.getElementById('wsLabel').textContent = 'Connected';
+  };
+  ws.onclose = () => {
+    document.getElementById('wsDot').classList.remove('connected');
+    document.getElementById('wsLabel').textContent = 'Disconnected';
+    setTimeout(connectWS, 3000);
+  };
+  ws.onerror = () => ws.close();
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    handleMessage(msg);
+  };
+}
+
+function handleMessage(msg) {
+  // Route shell messages
+  if (msg.type && msg.type.startsWith('shell_')) {
+    handleShellMessage(msg);
+    return;
+  }
+
+  switch (msg.type) {
+    case 'init':
+      logs = msg.logs || [];
+      agentStatuses = msg.agentStatuses || {};
+      if (msg.activeDeployment) updateDeployUI(msg.activeDeployment);
+      renderLogs();
+      break;
+    case 'servers':
+      servers = msg.servers;
+      updateStats();
+      buildGroups();
+      renderServers();
+      updateTermServerSelect();
+      break;
+    case 'log':
+      logs.push(msg.entry);
+      if (logs.length > 500) logs.shift();
+      appendLog(msg.entry);
+      break;
+    case 'agent_status':
+      if (msg.status) agentStatuses[msg.serverId] = msg.status;
+      else delete agentStatuses[msg.serverId];
+      renderServers();
+      break;
+    case 'deployment':
+      updateDeployUI(msg.deployment);
+      break;
+    case 'exec_result':
+      if (msg.server === currentDetailServer) {
+        const out = document.getElementById('terminalOutput');
+        const text = msg.result.stdout || msg.result.stderr || '(no output)';
+        out.textContent = `$ exit ${msg.result.code}\n${text}`;
+        out.scrollTop = out.scrollHeight;
+      }
+      break;
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// Data
+// ═══════════════════════════════════════════════════
+function updateStats() {
+  const online = servers.filter(s => s.status === 'online').length;
+  document.getElementById('statTotal').textContent = servers.length;
+  document.getElementById('statOnline').textContent = online;
+  document.getElementById('statOffline').textContent = servers.length - online;
+}
+
+function buildGroups() {
+  groups = {};
+  for (const s of servers) {
+    const g = s.group || 'default';
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(s.id);
+  }
+  renderGroupList();
+  updateGroupSelects();
+}
+
+function renderGroupList() {
+  const container = document.getElementById('groupList');
+  let html = `<div class="group-item ${selectedGroup === '__all' ? 'active' : ''}" data-group="__all" onclick="selectGroup(this,'__all')">
+    All Servers <span class="group-count">${servers.length}</span>
+  </div>`;
+  for (const [name, ids] of Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]))) {
+    const online = ids.filter(id => servers.find(s => s.id === id && s.status === 'online')).length;
+    html += `<div class="group-item ${selectedGroup === name ? 'active' : ''}" data-group="${name}" onclick="selectGroup(this,'${name}')">
+      ${name} <span class="group-count">${online}/${ids.length}</span>
+    </div>`;
+  }
+  container.innerHTML = html;
+  document.getElementById('groupCountAll') && (document.getElementById('groupCountAll').textContent = servers.length);
+}
+
+function selectGroup(el, group) {
+  selectedGroup = group;
+  document.querySelectorAll('.group-item').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  renderServers();
+}
+
+function updateGroupSelects() {
+  const selects = ['batchGroup', 'deployGroup'];
+  for (const id of selects) {
+    const sel = document.getElementById(id);
+    if (!sel) continue;
+    sel.innerHTML = '<option value="__all">All Servers</option>';
+    for (const name of Object.keys(groups).sort()) {
+      sel.innerHTML += `<option value="${name}">${name} (${groups[name].length})</option>`;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// Render Servers
+// ═══════════════════════════════════════════════════
+function renderServers() {
+  const grid = document.getElementById('serverGrid');
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  let filtered = servers;
+
+  if (selectedGroup !== '__all') {
+    filtered = filtered.filter(s => s.group === selectedGroup);
+  }
+  if (search) {
+    filtered = filtered.filter(s =>
+      s.id.toLowerCase().includes(search) ||
+      s.host.toLowerCase().includes(search) ||
+      (s.group || '').toLowerCase().includes(search) ||
+      (s.hostname || '').toLowerCase().includes(search)
+    );
+  }
+
+  if (!filtered.length) {
+    grid.innerHTML = '<div class="empty-state"><div class="icon">--</div><p>No servers found</p></div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map(s => {
+    const agent = agentStatuses[s.id];
+    const cpuClass = s.cpu > 80 ? 'high' : 'cpu';
+    const memClass = s.mem > 80 ? 'high' : 'mem';
+    const diskClass = s.disk > 80 ? 'high' : 'disk';
+    return `<div class="server-card ${s.status}" onclick="openDetail('${s.id}')">
+      ${agent ? `<div class="agent-badge" style="color:${agent.color || '#818cf8'}">${agent.text}</div>` : ''}
+      <div class="server-card-header" ${agent ? 'style="margin-top:20px"' : ''}>
+        <div>
+          <div class="server-name">${s.id}</div>
+          <div class="server-host">${s.host}:${s.port} @ ${s.username}</div>
+        </div>
+        <span class="status-badge ${s.status}">${s.status}</span>
+      </div>
+      ${s.status === 'online' ? `
+      <div class="server-metrics">
+        <div class="metric">
+          <div class="metric-label">CPU</div>
+          <div class="metric-bar"><div class="metric-bar-fill ${cpuClass}" style="width:${s.cpu}%"></div></div>
+          <div class="metric-value">${s.cpu.toFixed(1)}%</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">MEM</div>
+          <div class="metric-bar"><div class="metric-bar-fill ${memClass}" style="width:${s.mem}%"></div></div>
+          <div class="metric-value">${s.mem.toFixed(1)}%</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">DISK</div>
+          <div class="metric-bar"><div class="metric-bar-fill ${diskClass}" style="width:${s.disk}%"></div></div>
+          <div class="metric-value">${s.disk.toFixed(1)}%</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;text-align:right">
+        <button class="btn" style="padding:3px 10px;font-size:11px" onclick="event.stopPropagation();switchTab('terminal');openNewTerminal('${s.id}')">Open Terminal</button>
+      </div>` : `<div style="color:var(--text2);font-size:12px;margin-top:8px">${s.error || 'Unreachable'}</div>`}
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// Server Detail
+// ═══════════════════════════════════════════════════
+async function openDetail(serverId) {
+  currentDetailServer = serverId;
+  const s = servers.find(x => x.id === serverId);
+  document.getElementById('detailTitle').textContent = serverId;
+  document.getElementById('terminalOutput').textContent = 'Ready.';
+
+  document.getElementById('detailInfo').innerHTML = `
+    <div class="info-item"><label>Host</label><span>${s.host}:${s.port}</span></div>
+    <div class="info-item"><label>Username</label><span>${s.username}</span></div>
+    <div class="info-item"><label>Group</label><span>${s.group}</span></div>
+    <div class="info-item"><label>Status</label><span style="color:${s.status==='online'?'var(--green)':'var(--red)'}">${s.status}</span></div>
+    ${s.status === 'online' ? `
+    <div class="info-item"><label>Hostname</label><span>${s.hostname || '?'}</span></div>
+    <div class="info-item"><label>OS</label><span>${s.os || '?'}</span></div>
+    <div class="info-item"><label>Kernel</label><span>${s.kernel || '?'}</span></div>
+    <div class="info-item"><label>Uptime</label><span>${s.uptime}</span></div>
+    <div class="info-item"><label>Load</label><span>${s.load}</span></div>
+    <div class="info-item"><label>CPU Cores</label><span>${s.cpuCores || '?'}</span></div>
+    <div class="info-item"><label>Memory</label><span>${s.memUsed || '?'} / ${s.memTotal || '?'}</span></div>
+    <div class="info-item"><label>Disk</label><span>${s.diskUsed || '?'} / ${s.diskTotal || '?'}</span></div>
+    <div class="info-item"><label>IP</label><span>${s.ip || s.host}</span></div>
+    <div class="info-item"><label>Docker</label><span>${s.dockerRunning || '0'} running</span></div>
+    ` : ''}
+  `;
+
+  document.getElementById('detailServices').innerHTML = '<span style="color:var(--text2);font-size:13px">Loading...</span>';
+  document.getElementById('detailOverlay').classList.add('show');
+
+  if (s.status === 'online') {
+    try {
+      const resp = await fetch(`${API}/api/server/${serverId}`);
+      const info = await resp.json();
+      if (info.services && Object.keys(info.services).length) {
+        document.getElementById('detailServices').innerHTML = Object.entries(info.services).map(([name, state]) =>
+          `<div class="service-tag">
+            <span class="service-dot ${state}"></span>
+            ${name}
+            <div class="service-actions">
+              <button class="svc-btn restart" onclick="event.stopPropagation();svcAction('${serverId}','${name}','restart')">restart</button>
+              <button class="svc-btn stop" onclick="event.stopPropagation();svcAction('${serverId}','${name}','stop')">stop</button>
+            </div>
+          </div>`
+        ).join('');
+      } else {
+        document.getElementById('detailServices').innerHTML = '<span style="color:var(--text2);font-size:13px">No known services detected</span>';
+      }
+    } catch {
+      document.getElementById('detailServices').innerHTML = '<span style="color:var(--red);font-size:13px">Failed to load</span>';
+    }
+  } else {
+    document.getElementById('detailServices').innerHTML = '<span style="color:var(--text2);font-size:13px">Server offline</span>';
+  }
+}
+
+function closeDetail() {
+  document.getElementById('detailOverlay').classList.remove('show');
+  currentDetailServer = null;
+}
+
+async function svcAction(server, service, action) {
+  try {
+    await fetch(`${API}/api/service`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ server, service, action })
+    });
+    // Refresh detail
+    setTimeout(() => openDetail(server), 1000);
+  } catch (e) {
+    alert('Failed: ' + e.message);
+  }
+}
+
+function execTerminal() {
+  const input = document.getElementById('terminalInput');
+  const cmd = input.value.trim();
+  if (!cmd || !currentDetailServer) return;
+  const out = document.getElementById('terminalOutput');
+  out.textContent = `$ ${cmd}\nExecuting...`;
+
+  if (ws && ws.readyState === 1) {
+    ws.send(JSON.stringify({
+      type: 'exec',
+      server: currentDetailServer,
+      command: cmd,
+      requestId: Date.now().toString()
+    }));
+  } else {
+    fetch(`${API}/api/exec`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ server: currentDetailServer, command: cmd })
+    }).then(r => r.json()).then(r => {
+      out.textContent = `$ ${cmd}\nexit ${r.code}\n${r.stdout || r.stderr || '(no output)'}`;
+    }).catch(e => {
+      out.textContent = `$ ${cmd}\nError: ${e.message}`;
+    });
+  }
+  input.value = '';
+}
+
+// ═══════════════════════════════════════════════════
+// Batch Exec
+// ═══════════════════════════════════════════════════
+async function execBatch() {
+  const group = document.getElementById('batchGroup').value;
+  const cmd = document.getElementById('batchCmd').value.trim();
+  if (!cmd) return;
+
+  const container = document.getElementById('batchResults');
+  container.innerHTML = '<div style="padding:10px;color:var(--text2)"><span class="spinner"></span> Executing...</div>';
+
+  try {
+    const body = group === '__all'
+      ? { servers: servers.map(s => s.id), command: cmd }
+      : { group, command: cmd };
+
+    const resp = await fetch(`${API}/api/exec-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await resp.json();
+
+    container.innerHTML = Object.entries(data.results).map(([id, r]) =>
+      `<div class="batch-result-item">
+        <span class="${r.code === 0 ? 'code0' : 'code-fail'}">[${r.code}]</span>
+        <strong>${id}</strong>
+        <span style="color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(r.stdout || r.stderr || '').substring(0, 120)}</span>
+      </div>`
+    ).join('');
+  } catch (e) {
+    container.innerHTML = `<div style="padding:10px;color:var(--red)">Error: ${e.message}</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// Deploy
+// ═══════════════════════════════════════════════════
+function updateDeployCanary() {
+  const group = document.getElementById('deployGroup').value;
+  const sel = document.getElementById('deployCanary');
+  let ids = group === '__all' ? servers.map(s => s.id) : (groups[group] || []);
+  sel.innerHTML = ids.map(id => `<option value="${id}">${id}</option>`).join('');
+}
+
+async function startDeploy() {
+  const group = document.getElementById('deployGroup').value;
+  const canary = document.getElementById('deployCanary').value;
+  const cmd = document.getElementById('deployCmd').value.trim();
+  const rollback = document.getElementById('deployRollback').value.trim();
+  const check = document.getElementById('deployCheck').value.trim();
+  if (!cmd || !canary) return alert('Please fill deploy command and select canary server');
+
+  const serverIds = group === '__all' ? servers.map(s => s.id) : (groups[group] || []);
+
+  try {
+    await fetch(`${API}/api/deploy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        command: cmd,
+        rollbackCommand: rollback || undefined,
+        canaryServerId: canary,
+        serverIds,
+        postCheck: check || undefined
+      })
+    });
+  } catch (e) {
+    alert('Failed to start deployment: ' + e.message);
+  }
+}
+
+async function abortDeploy() {
+  try {
+    await fetch(`${API}/api/deploy/abort`, { method: 'POST' });
+  } catch (e) {
+    alert('Failed: ' + e.message);
+  }
+}
+
+function updateDeployUI(d) {
+  const panel = document.getElementById('deployProgress');
+  panel.classList.add('active');
+  document.getElementById('deployPhase').textContent = `Phase: ${d.phase} | Status: ${d.status}`;
+  document.getElementById('deployPct').textContent = `${Math.round(d.progress || 0)}%`;
+  document.getElementById('deployFill').style.width = `${d.progress || 0}%`;
+  if (d.results) {
+    document.getElementById('deployResults').innerHTML = d.results.map(r =>
+      `<div style="color:${r.status === 'ok' ? 'var(--green)' : 'var(--red)'}">[${r.phase}] ${r.server}: ${r.status} ${r.output ? '- ' + r.output.substring(0, 80) : ''}</div>`
+    ).join('');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// Logs
+// ═══════════════════════════════════════════════════
+function renderLogs() {
+  const panel = document.getElementById('logPanel');
+  panel.innerHTML = logs.map(logHTML).join('');
+  panel.scrollTop = panel.scrollHeight;
+}
+
+function appendLog(entry) {
+  const panel = document.getElementById('logPanel');
+  panel.innerHTML += logHTML(entry);
+  if (panel.children.length > 500) panel.removeChild(panel.firstChild);
+  panel.scrollTop = panel.scrollHeight;
+}
+
+function logHTML(e) {
+  return `<div class="log-entry ${e.level}">
+    <span class="log-ts">${e.ts}</span>
+    <span class="log-source">[${e.source}]</span>
+    <span class="log-msg">${escapeHtml(e.msg)}</span>
+  </div>`;
+}
+
+function clearLogs() {
+  logs = [];
+  document.getElementById('logPanel').innerHTML = '';
+}
+
+function escapeHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+// ═══════════════════════════════════════════════════
+// Tabs
+// ═══════════════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
+}
+
+// ═══════════════════════════════════════════════════
+// Refresh
+// ═══════════════════════════════════════════════════
+async function refreshServers() {
+  try {
+    await fetch(`${API}/api/servers/refresh`, { method: 'POST' });
+  } catch {}
+  try {
+    const resp = await fetch(`${API}/api/servers`);
+    const data = await resp.json();
+    if (data.servers) {
+      servers = data.servers;
+      updateStats();
+      buildGroups();
+      renderServers();
+    }
+  } catch {}
+}
+
+// ═══════════════════════════════════════════════════
+// Server Management
+// ═══════════════════════════════════════════════════
+let configServers = [];
+
+async function importFromFile() {
+  const span = document.getElementById('importFileResult');
+  span.textContent = 'Importing...';
+  span.style.color = 'var(--text2)';
+  try {
+    const resp = await fetch(`${API}/api/servers/import-file`, { method: 'POST' });
+    const data = await resp.json();
+    if (data.ok) {
+      span.textContent = `Imported ${data.count} servers!`;
+      span.style.color = 'var(--green)';
+      loadConfigList();
+      setTimeout(refreshServers, 2000);
+    } else {
+      span.textContent = `Error: ${data.error}`;
+      span.style.color = 'var(--red)';
+    }
+  } catch (e) {
+    span.textContent = `Failed: ${e.message}`;
+    span.style.color = 'var(--red)';
+  }
+}
+
+async function importCSV() {
+  const csv = document.getElementById('csvImport').value.trim();
+  if (!csv) return;
+  const span = document.getElementById('importCsvResult');
+  span.textContent = 'Importing...';
+  span.style.color = 'var(--text2)';
+  try {
+    const resp = await fetch(`${API}/api/servers/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csv })
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      span.textContent = `Imported ${data.count} servers!`;
+      span.style.color = 'var(--green)';
+      document.getElementById('csvImport').value = '';
+      loadConfigList();
+      setTimeout(refreshServers, 2000);
+    } else {
+      span.textContent = `Error: ${data.error}`;
+      span.style.color = 'var(--red)';
+    }
+  } catch (e) {
+    span.textContent = `Failed: ${e.message}`;
+    span.style.color = 'var(--red)';
+  }
+}
+
+async function addServer() {
+  const id = document.getElementById('addName').value.trim();
+  const host = document.getElementById('addHost').value.trim();
+  const port = parseInt(document.getElementById('addPort').value) || 22;
+  const username = document.getElementById('addUser').value.trim() || 'root';
+  const password = document.getElementById('addPass').value;
+  const group = document.getElementById('addGroup').value.trim() || 'default';
+  const span = document.getElementById('addResult');
+
+  if (!id || !host) {
+    span.textContent = 'Name and Host are required';
+    span.style.color = 'var(--red)';
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${API}/api/server/add`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, host, port, username, password, group })
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      span.textContent = `Server "${id}" added!`;
+      span.style.color = 'var(--green)';
+      document.getElementById('addName').value = '';
+      document.getElementById('addHost').value = '';
+      loadConfigList();
+      setTimeout(refreshServers, 1000);
+    } else {
+      span.textContent = `Error: ${data.error}`;
+      span.style.color = 'var(--red)';
+    }
+  } catch (e) {
+    span.textContent = `Failed: ${e.message}`;
+    span.style.color = 'var(--red)';
+  }
+}
+
+async function removeServer(id) {
+  if (!confirm(`Remove server "${id}"?`)) return;
+  try {
+    await fetch(`${API}/api/server/remove`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+    loadConfigList();
+    setTimeout(refreshServers, 1000);
+  } catch (e) {
+    alert('Failed: ' + e.message);
+  }
+}
+
+async function clearAllServers() {
+  if (!confirm('Are you sure you want to remove ALL servers from config?')) return;
+  if (!confirm('This cannot be undone. Continue?')) return;
+  try {
+    const resp = await fetch(`${API}/api/servers/clear`, { method: 'POST' });
+    const data = await resp.json();
+    if (data.ok) {
+      loadConfigList();
+      refreshServers();
+    }
+  } catch (e) {
+    alert('Failed: ' + e.message);
+  }
+}
+
+async function loadConfigList() {
+  try {
+    const resp = await fetch(`${API}/api/servers/list-config`);
+    const data = await resp.json();
+    configServers = data.servers || [];
+    document.getElementById('configCount').textContent = data.total || 0;
+    renderConfigList();
+  } catch { }
+}
+
+function filterConfigList() {
+  renderConfigList();
+}
+
+function renderConfigList() {
+  const container = document.getElementById('configList');
+  const search = (document.getElementById('configSearch')?.value || '').toLowerCase();
+  let filtered = configServers;
+  if (search) {
+    filtered = filtered.filter(s =>
+      s.id.toLowerCase().includes(search) ||
+      s.host.toLowerCase().includes(search) ||
+      (s.group || '').toLowerCase().includes(search)
+    );
+  }
+  if (!filtered.length) {
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">No servers configured</div>';
+    return;
+  }
+  container.innerHTML = filtered.map(s =>
+    `<div class="batch-result-item" style="justify-content:space-between">
+      <div style="display:flex;gap:12px;align-items:center;flex:1;min-width:0">
+        <strong style="min-width:200px">${s.id}</strong>
+        <span style="color:var(--text2)">${s.host}:${s.port}</span>
+        <span style="color:var(--text2)">@${s.username}</span>
+        <span style="color:var(--accent);font-size:12px">${s.group}</span>
+      </div>
+      <button class="btn danger" style="padding:3px 10px;font-size:11px" onclick="removeServer('${s.id}')">Remove</button>
+    </div>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// Interactive Terminal (xterm.js + SSH shell)
+// ═══════════════════════════════════════════════════
+const termSessions = new Map(); // sessionId -> { term, fitAddon, serverId, element }
+let activeTermSession = null;
+
+function updateTermServerSelect() {
+  const sel = document.getElementById('termServerSelect');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">-- Select Server --</option>';
+  for (const s of servers) {
+    sel.innerHTML += `<option value="${s.id}" ${s.status !== 'online' ? 'disabled' : ''}>${s.id} (${s.host}) ${s.status !== 'online' ? '[offline]' : ''}</option>`;
+  }
+  if (current) sel.value = current;
+}
+
+function openNewTerminal(serverId) {
+  if (!serverId) {
+    serverId = document.getElementById('termServerSelect').value;
+  }
+  if (!serverId) return;
+
+  const sessionId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+  // Create xterm instance
+  const term = new Terminal({
+    cursorBlink: true,
+    fontSize: 14,
+    fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', monospace",
+    theme: {
+      background: '#0a0e17',
+      foreground: '#e2e8f0',
+      cursor: '#38bdf8',
+      cursorAccent: '#0a0e17',
+      selectionBackground: 'rgba(56,189,248,0.3)',
+      black: '#1a2236',
+      red: '#ef4444',
+      green: '#22c55e',
+      yellow: '#f59e0b',
+      blue: '#38bdf8',
+      magenta: '#f472b6',
+      cyan: '#22d3ee',
+      white: '#e2e8f0',
+      brightBlack: '#475569',
+      brightRed: '#f87171',
+      brightGreen: '#4ade80',
+      brightYellow: '#fbbf24',
+      brightBlue: '#60a5fa',
+      brightMagenta: '#f9a8d4',
+      brightCyan: '#67e8f9',
+      brightWhite: '#f8fafc',
+    },
+    scrollback: 5000,
+    allowProposedApi: true,
+  });
+
+  const fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+
+  try {
+    const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+    term.loadAddon(webLinksAddon);
+  } catch {}
+
+  // Create terminal DOM element
+  const termEl = document.createElement('div');
+  termEl.id = `term-${sessionId}`;
+  termEl.style.cssText = 'width:100%;height:100%;display:none;';
+  document.getElementById('termContainer').appendChild(termEl);
+
+  term.open(termEl);
+
+  // Store session
+  const session = { term, fitAddon, serverId, element: termEl, connected: false };
+  termSessions.set(sessionId, session);
+
+  // Add tab
+  const tabBar = document.getElementById('termTabBar');
+  const newBtn = tabBar.querySelector('.term-new-btn');
+  const tab = document.createElement('div');
+  tab.className = 'term-tab';
+  tab.dataset.session = sessionId;
+  tab.innerHTML = `
+    <span class="term-tab-dot"></span>
+    <span class="term-tab-label">${serverId}</span>
+    <button class="term-tab-close" onclick="event.stopPropagation();closeTerminal('${sessionId}')">&times;</button>
+  `;
+  tab.addEventListener('click', () => switchTermSession(sessionId));
+  tabBar.insertBefore(tab, newBtn);
+
+  // Switch to this session
+  switchTermSession(sessionId);
+
+  // Fit after visible
+  setTimeout(() => {
+    fitAddon.fit();
+
+    // Connect SSH shell via WebSocket
+    const cols = term.cols;
+    const rows = term.rows;
+
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({
+        type: 'shell_open',
+        server: serverId,
+        sessionId,
+        cols,
+        rows
+      }));
+    }
+
+    // Handle terminal input -> send to server
+    term.onData((data) => {
+      if (ws && ws.readyState === 1 && session.connected) {
+        // Encode string as UTF-8 bytes then base64
+        const encoder = new TextEncoder();
+        const bytes = encoder.encode(data);
+        let binary = '';
+        for (const b of bytes) binary += String.fromCharCode(b);
+        ws.send(JSON.stringify({
+          type: 'shell_input',
+          sessionId,
+          data: btoa(binary)
+        }));
+      }
+    });
+
+    // Handle resize
+    term.onResize(({ cols, rows }) => {
+      if (ws && ws.readyState === 1 && session.connected) {
+        ws.send(JSON.stringify({
+          type: 'shell_resize',
+          sessionId,
+          cols,
+          rows
+        }));
+      }
+    });
+  }, 50);
+
+  // Hide connect panel
+  document.getElementById('termConnectPanel').style.display = 'none';
+}
+
+function switchTermSession(sessionId) {
+  // Hide all term elements
+  for (const [id, s] of termSessions) {
+    s.element.style.display = 'none';
+  }
+
+  // Deactivate all tabs
+  document.querySelectorAll('.term-tab').forEach(t => t.classList.remove('active'));
+
+  // Show selected
+  const session = termSessions.get(sessionId);
+  if (session) {
+    session.element.style.display = 'block';
+    activeTermSession = sessionId;
+
+    // Activate tab
+    const tab = document.querySelector(`.term-tab[data-session="${sessionId}"]`);
+    if (tab) tab.classList.add('active');
+
+    // Update status bar
+    const s = servers.find(x => x.id === session.serverId);
+    document.getElementById('termStatusLeft').textContent =
+      `${session.serverId} (${s ? s.host : '?'}) — ${session.connected ? 'Connected' : 'Connecting...'}`;
+    document.getElementById('termStatusRight').textContent =
+      `${session.term.cols}x${session.term.rows}`;
+
+    // Re-fit and focus
+    setTimeout(() => {
+      session.fitAddon.fit();
+      session.term.focus();
+    }, 10);
+  }
+}
+
+function closeTerminal(sessionId) {
+  const session = termSessions.get(sessionId);
+  if (!session) return;
+
+  // Send close to server
+  if (ws && ws.readyState === 1) {
+    ws.send(JSON.stringify({ type: 'shell_close', sessionId }));
+  }
+
+  // Dispose xterm
+  session.term.dispose();
+  session.element.remove();
+
+  // Remove tab
+  const tab = document.querySelector(`.term-tab[data-session="${sessionId}"]`);
+  if (tab) tab.remove();
+
+  termSessions.delete(sessionId);
+
+  // Switch to another session or show connect panel
+  if (termSessions.size > 0) {
+    const nextId = termSessions.keys().next().value;
+    switchTermSession(nextId);
+  } else {
+    activeTermSession = null;
+    document.getElementById('termConnectPanel').style.display = '';
+    document.getElementById('termStatusLeft').textContent = 'No active session';
+    document.getElementById('termStatusRight').textContent = '';
+  }
+}
+
+// Handle shell messages from WebSocket
+function handleShellMessage(msg) {
+  if (msg.type === 'shell_opened') {
+    const session = termSessions.get(msg.sessionId);
+    if (session) {
+      session.connected = true;
+      const tab = document.querySelector(`.term-tab[data-session="${msg.sessionId}"]`);
+      if (tab) tab.querySelector('.term-tab-dot').style.background = 'var(--green)';
+      if (activeTermSession === msg.sessionId) {
+        const s = servers.find(x => x.id === session.serverId);
+        document.getElementById('termStatusLeft').textContent =
+          `${session.serverId} (${s ? s.host : '?'}) — Connected`;
+      }
+    }
+  }
+
+  if (msg.type === 'shell_data') {
+    const session = termSessions.get(msg.sessionId);
+    if (session) {
+      // Decode base64 to binary string, then to Uint8Array for proper UTF-8 handling
+      const binaryStr = atob(msg.data);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+      session.term.write(bytes);
+    }
+  }
+
+  if (msg.type === 'shell_closed') {
+    const session = termSessions.get(msg.sessionId);
+    if (session) {
+      session.connected = false;
+      session.term.write('\r\n\x1b[31m--- Session closed ---\x1b[0m\r\n');
+      const tab = document.querySelector(`.term-tab[data-session="${msg.sessionId}"]`);
+      if (tab) tab.querySelector('.term-tab-dot').style.background = 'var(--red)';
+      if (activeTermSession === msg.sessionId) {
+        document.getElementById('termStatusLeft').textContent =
+          `${session.serverId} — Disconnected`;
+      }
+    }
+  }
+
+  if (msg.type === 'shell_error') {
+    const session = termSessions.get(msg.sessionId);
+    if (session) {
+      session.term.write(`\r\n\x1b[31mError: ${msg.error}\x1b[0m\r\n`);
+    }
+  }
+}
+
+// Window resize -> refit active terminal
+window.addEventListener('resize', () => {
+  if (activeTermSession) {
+    const session = termSessions.get(activeTermSession);
+    if (session) {
+      session.fitAddon.fit();
+      document.getElementById('termStatusRight').textContent =
+        `${session.term.cols}x${session.term.rows}`;
+    }
+  }
+});
+
+// ═══════════════════════════════════════════════════
+// Init
+// ═══════════════════════════════════════════════════
+document.getElementById('deployGroup').addEventListener('change', updateDeployCanary);
+
+connectWS();
+refreshServers();
+loadConfigList();
+
+// Keyboard: Escape closes detail
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeDetail();
+});
+</script>
+</body>
+</html>

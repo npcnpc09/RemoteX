@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TERMIX-CC Console</title>
+<style>
+:root {
+  --bg: #0a0e17; --bg2: #111827; --bg3: #1a2236; --bg4: #0d1321;
+  --border: #2a3a5c; --text: #e2e8f0; --text2: #94a3b8;
+  --accent: #38bdf8; --accent2: #818cf8; --green: #22c55e;
+  --red: #ef4444; --orange: #f59e0b; --pink: #f472b6;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height:100vh; }
+
+/* ── Header ── */
+.header {
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  padding: 10px 16px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.logo { font-size: 18px; font-weight: 700; color: var(--accent); }
+.logo small { color: var(--text2); font-weight: 400; font-size: 12px; margin-left: 6px; }
+.stats { display: flex; gap: 10px; font-size: 12px; flex-wrap: wrap; }
+.badge { padding: 3px 10px; border-radius: 10px; font-weight: 600; }
+.b-green { background: rgba(34,197,94,.15); color: var(--green); }
+.b-blue { background: rgba(56,189,248,.15); color: var(--accent); }
+.b-red { background: rgba(239,68,68,.15); color: var(--red); }
+
+/* ── Tabs ── */
+.tabs {
+  display: flex; background: var(--bg2); border-bottom: 1px solid var(--border);
+  padding: 0 16px; overflow-x: auto;
+}
+.tab {
+  padding: 10px 20px; font-size: 13px; font-weight: 600; color: var(--text2);
+  cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── Panels ── */
+.panel { display: none; padding: 16px; padding-bottom: 60px; }
+.panel.active { display: block; }
+
+/* ── Server Grid ── */
+.group-title {
+  font-size: 13px; color: var(--accent); font-weight: 600;
+  margin: 16px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border);
+}
+.group-title:first-child { margin-top: 0; }
+.server-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+
+.server-card {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 12px; transition: all .2s; cursor: pointer; position: relative;
+}
+.server-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.server-card.online { border-left: 3px solid var(--green); }
+.server-card.offline { border-left: 3px solid var(--red); opacity: 0.5; }
+.server-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+.s-actions { display: flex; gap: 6px; margin-top: 8px; }
+.s-btn {
+  font-size: 10px; padding: 3px 10px; border: 1px solid var(--border); border-radius: 4px;
+  cursor: pointer; font-weight: 600; background: var(--bg3); color: var(--text2); transition: all .2s;
+}
+.s-btn:hover { border-color: var(--accent); color: var(--text); }
+.s-btn.connect { border-color: var(--green); color: var(--green); }
+.s-btn.connect:hover { background: var(--green); color: #000; }
+.s-btn.disconnect { border-color: var(--red); color: var(--red); }
+.s-btn.disconnect:hover { background: var(--red); color: #fff; }
+
+.toolbar {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 10px 0; border-bottom: 1px solid var(--border); margin-bottom: 10px;
+}
+.toolbar input {
+  background: var(--bg4); border: 1px solid var(--border); border-radius: 4px;
+  color: var(--text); padding: 6px 10px; font-size: 12px; min-width: 160px;
+}
+.toolbar .cmd-btn { font-size: 11px; }
+
+.s-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.s-name { font-weight: 600; font-size: 12px; }
+.s-status { font-size: 10px; padding: 2px 7px; border-radius: 8px; font-weight: 600; }
+.s-status.online { background: rgba(34,197,94,.15); color: var(--green); }
+.s-status.offline { background: rgba(239,68,68,.15); color: var(--red); }
+.s-info { font-size: 11px; color: var(--text2); line-height: 1.5; font-family: 'Consolas', monospace; }
+
+/* ── Command Panel ── */
+.cmd-panel {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+  margin-bottom: 16px; overflow: hidden;
+}
+.cmd-header {
+  padding: 10px 14px; background: var(--bg3); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.cmd-header label { font-size: 12px; color: var(--text2); font-weight: 600; }
+.cmd-header select, .cmd-header input {
+  background: var(--bg4); border: 1px solid var(--border); border-radius: 4px;
+  color: var(--text); padding: 6px 10px; font-size: 12px; font-family: 'Consolas', monospace;
+}
+.cmd-header select { min-width: 200px; }
+.cmd-header input { flex: 1; min-width: 200px; }
+.cmd-btn {
+  padding: 6px 16px; border: none; border-radius: 4px; font-weight: 600;
+  font-size: 12px; cursor: pointer; transition: opacity .2s;
+}
+.cmd-btn:hover { opacity: 0.8; }
+.cmd-btn.send { background: var(--accent); color: #000; }
+.cmd-btn.broadcast { background: var(--orange); color: #000; }
+.cmd-btn.danger { background: var(--red); color: #fff; }
+
+.cmd-output {
+  background: var(--bg4); padding: 12px 14px; max-height: 400px; overflow-y: auto;
+  font-family: 'Consolas', monospace; font-size: 12px; line-height: 1.5;
+  white-space: pre-wrap; word-break: break-all; color: var(--green);
+}
+.cmd-output .err { color: var(--red); }
+.cmd-output .info { color: var(--text2); }
+.cmd-output .srv { color: var(--accent); font-weight: 600; }
+
+/* ── Operation Log ── */
+.log-list { font-size: 12px; font-family: 'Consolas', monospace; }
+.log-entry {
+  padding: 6px 12px; border-bottom: 1px solid rgba(42,58,92,.3);
+  display: flex; gap: 12px; line-height: 1.4;
+}
+.log-entry:hover { background: var(--bg3); }
+.log-time { color: var(--text2); white-space: nowrap; min-width: 70px; }
+.log-type { font-weight: 600; min-width: 60px; }
+.log-type.cmd { color: var(--accent); }
+.log-type.broadcast { color: var(--orange); }
+.log-type.result { color: var(--green); }
+.log-type.error { color: var(--red); }
+.log-msg { color: var(--text); word-break: break-all; }
+
+/* ── Footer ── */
+.footer {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--bg2); border-top: 1px solid var(--border);
+  padding: 6px 16px; font-size: 11px; color: var(--text2);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.footer button {
+  background: var(--bg3); color: var(--text2); border: 1px solid var(--border);
+  padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;
+}
+.footer button:hover { color: var(--text); border-color: var(--accent); }
+
+/* ── Confirm Dialog ── */
+.confirm-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  z-index: 200; justify-content: center; align-items: center;
+}
+.confirm-overlay.show { display: flex; }
+.confirm-box {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 24px; max-width: 420px; width: 90%;
+}
+.confirm-box h3 { color: var(--orange); margin-bottom: 12px; font-size: 15px; }
+.confirm-box p { color: var(--text2); font-size: 13px; margin-bottom: 16px; line-height: 1.5; }
+.confirm-box code { background: var(--bg4); padding: 2px 6px; border-radius: 3px; color: var(--accent); }
+.confirm-btns { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* ── Chat ── */
+.chat-container { display: flex; flex-direction: column; height: calc(100vh - 140px); }
+.chat-messages {
+  flex: 1; overflow-y: auto; padding: 12px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.chat-msg {
+  max-width: 85%; padding: 10px 14px; border-radius: 12px;
+  font-size: 13px; line-height: 1.5; word-break: break-word; white-space: pre-wrap;
+}
+.chat-msg.user {
+  align-self: flex-end; background: var(--accent); color: #000;
+  border-bottom-right-radius: 4px;
+}
+.chat-msg.assistant {
+  align-self: flex-start; background: var(--bg3); color: var(--text);
+  border: 1px solid var(--border); border-bottom-left-radius: 4px;
+}
+.chat-msg.system {
+  align-self: center; background: transparent; color: var(--text2);
+  font-size: 11px; padding: 4px;
+}
+.chat-msg .msg-time { font-size: 10px; opacity: 0.6; margin-top: 4px; }
+.chat-typing {
+  align-self: flex-start; color: var(--text2); font-size: 12px;
+  padding: 8px 14px; display: none;
+}
+.chat-typing.show { display: block; }
+.chat-typing .dots { animation: blink 1.4s infinite; }
+@keyframes blink { 0%,20% { opacity:.2 } 50% { opacity:1 } 100% { opacity:.2 } }
+
+.chat-input-bar {
+  display: flex; gap: 8px; padding: 10px 12px;
+  background: var(--bg2); border-top: 1px solid var(--border);
+}
+.chat-input-bar input {
+  flex: 1; background: var(--bg4); border: 1px solid var(--border); border-radius: 20px;
+  color: var(--text); padding: 10px 16px; font-size: 13px; outline: none;
+}
+.chat-input-bar input:focus { border-color: var(--accent); }
+.chat-input-bar button {
+  background: var(--accent); color: #000; border: none; border-radius: 50%;
+  width: 40px; height: 40px; font-size: 18px; cursor: pointer; font-weight: 700;
+}
+.chat-input-bar button:hover { opacity: 0.8; }
+.chat-input-bar button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.chat-quick {
+  display: flex; gap: 6px; padding: 6px 12px; overflow-x: auto;
+  background: var(--bg2); border-top: 1px solid var(--border);
+}
+.chat-quick button {
+  white-space: nowrap; padding: 5px 12px; border-radius: 14px;
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text2); font-size: 11px; cursor: pointer;
+}
+.chat-quick button:hover { border-color: var(--accent); color: var(--text); }
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .header { flex-direction: column; gap: 8px; align-items: flex-start; }
+  .server-grid { grid-template-columns: 1fr; }
+  .cmd-header { flex-direction: column; align-items: stretch; }
+  .cmd-header select, .cmd-header input { min-width: auto; }
+  .tabs { padding: 0 8px; }
+  .tab { padding: 8px 12px; font-size: 12px; }
+  .panel { padding: 10px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">TERMIX-CC <small>Console v0.4</small></div>
+  <div class="stats" id="stats"></div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('servers')">Servers</div>
+  <div class="tab" onclick="switchTab('command')">Command</div>
+  <div class="tab" onclick="switchTab('chat')">AI Chat</div>
+  <div class="tab" onclick="switchTab('log')">Log</div>
+</div>
+
+<!-- Server Status Panel -->
+<div class="panel active" id="panel-servers">
+  <div class="toolbar" id="toolbar">
+    <input id="filter-input" placeholder="Filter: e.g. SMAPP, IVR..." oninput="filterServers()">
+    <button class="cmd-btn connect" style="background:var(--green);color:#000;border:none;" onclick="connectFiltered()">Connect Filtered</button>
+    <button class="cmd-btn" style="background:var(--bg3);color:var(--text2);border:1px solid var(--border);" onclick="disconnectAll()">Disconnect All</button>
+  </div>
+  <div id="server-list"></div>
+</div>
+
+<!-- Command Panel -->
+<div class="panel" id="panel-command">
+  <div class="cmd-panel">
+    <div class="cmd-header">
+      <label>Target:</label>
+      <select id="cmd-target">
+        <option value="__all__">All Online Sessions</option>
+      </select>
+      <label>Command:</label>
+      <input id="cmd-input" placeholder="Enter command..." onkeydown="if(event.key==='Enter')sendCmd()">
+      <button class="cmd-btn send" onclick="sendCmd()">Execute</button>
+    </div>
+    <div class="cmd-output" id="cmd-output">
+<span class="info">Ready. Select target and enter command.</span>
+</div>
+  </div>
+  <div style="font-size:12px; color:var(--text2); margin-top:8px;">
+    Tip: Select "All Online Sessions" to broadcast. Dangerous commands (rm, reboot, shutdown) require confirmation.
+  </div>
+</div>
+
+<!-- AI Chat Panel -->
+<div class="panel" id="panel-chat">
+  <div class="chat-container">
+    <div class="chat-messages" id="chat-messages">
+      <div class="chat-msg system">🤖 AI 运维助手 — 用自然语言控制服务器</div>
+      <div class="chat-msg assistant">你好！我是运维助手，你可以用自然语言给我下指令，比如：<br>• "检查所有SMAPP的磁盘空间"<br>• "SMAPP1 的内存使用情况"<br>• "所有服务器的 hostname"<br>• "有多少台服务器在线"<br><br>⚠️ 修改类操作（删除、编辑文件等）需要在 Claude Code 主会话确认。</div>
+    </div>
+    <div class="chat-typing" id="chat-typing">🤖 思考中<span class="dots">...</span></div>
+    <div class="chat-quick">
+      <button onclick="chatSend('有多少台服务器在线？')">📊 在线状态</button>
+      <button onclick="chatSend('检查所有SMAPP的磁盘空间')">💾 磁盘检查</button>
+      <button onclick="chatSend('所有SMAPP的内存使用')">🧠 内存检查</button>
+      <button onclick="chatSend('所有服务器执行 uptime')">⏱ Uptime</button>
+      <button onclick="chatSend('检查 /tmp/Traffic1.sh 是否存在')">📄 文件检查</button>
+    </div>
+    <div class="chat-input-bar">
+      <input id="chat-input" placeholder="输入指令..." onkeydown="if(event.key==='Enter'&&!chatBusy)chatSend()">
+      <button id="chat-send-btn" onclick="chatSend()">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- Log Panel -->
+<div class="panel" id="panel-log">
+  <div class="log-list" id="log-list">
+    <div class="log-entry"><span class="log-time">--:--:--</span><span class="log-type info">info</span><span class="log-msg">Operation log started</span></div>
+  </div>
+</div>
+
+<!-- Confirm Dialog -->
+<div class="confirm-overlay" id="confirm-dialog">
+  <div class="confirm-box">
+    <h3>Confirm Execution</h3>
+    <p id="confirm-msg"></p>
+    <div class="confirm-btns">
+      <button class="cmd-btn" style="background:var(--bg3);color:var(--text2);" onclick="cancelConfirm()">Cancel</button>
+      <button class="cmd-btn danger" onclick="doConfirm()">Execute</button>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <span id="last-update">Loading...</span>
+  <div>
+    <button onclick="refreshStatus()">Refresh</button>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin;
+const DANGEROUS = ['rm ', 'rm -', 'reboot', 'shutdown', 'mkfs', 'dd if=', 'format', '> /dev/', 'init 0', 'init 6'];
+
+// Auth — 浏览器打开页面时会自动弹出登录框（Basic Auth），之后所有 fetch 也带上
+function authHeaders() {
+  return { 'Authorization': 'Basic ' + btoa(window._auth || 'admin:88888888') };
+}
+// 首次访问页面本身已经通过了 Basic Auth，浏览器会自动缓存凭据发送给同源请求
+let sessions = [];
+let opLog = [];
+let pendingCmd = null;
+
+// ── Tab Switching ──
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', t.textContent.toLowerCase().includes(name.substring(0, 3)));
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+// ── Logging ──
+function addLog(type, msg) {
+  const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+  opLog.push({ time, type, msg });
+  if (opLog.length > 500) opLog.shift();
+  const el = document.getElementById('log-list');
+  el.innerHTML += `<div class="log-entry"><span class="log-time">${time}</span><span class="log-type ${type}">${type}</span><span class="log-msg">${escHtml(msg)}</span></div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── Server Status ──
+async function refreshStatus() {
+  try {
+    const [sessRes, srvRes] = await Promise.all([
+      fetch(API + '/sessions').then(r => r.json()),
+      fetch(API + '/servers').then(r => r.json()),
+    ]);
+    sessions = sessRes.sessions;
+
+    const sessionMap = {};
+    for (const s of sessions) sessionMap[s.name] = s;
+
+    // Group
+    const groups = {};
+    for (const s of srvRes.servers) {
+      const g = s.group || 'Default';
+      if (!groups[g]) groups[g] = [];
+      const sess = sessionMap[s.name];
+      groups[g].push({ ...s, online: sess ? sess.connected : false, hasSession: !!sess });
+    }
+
+    const online = sessions.filter(s => s.connected).length;
+
+    // Stats
+    document.getElementById('stats').innerHTML = `
+      <span class="badge b-green">Online ${online}</span>
+      <span class="badge b-blue">Sessions ${sessions.length}</span>
+      <span class="badge b-blue">Servers ${srvRes.count}</span>
+    `;
+
+    // Store for filtering
+    window._groups = groups;
+    renderServers(groups);
+
+    // Update command target dropdown
+    const sel = document.getElementById('cmd-target');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="__all__">All Online Sessions (' + online + ')</option>';
+    for (const s of sessions.filter(s => s.connected)) {
+      sel.innerHTML += `<option value="${s.name}">${s.name} (${s.host})</option>`;
+    }
+    sel.value = cur || '__all__';
+
+    document.getElementById('last-update').textContent = `Updated: ${new Date().toLocaleTimeString()}`;
+  } catch (err) {
+    document.getElementById('panel-servers').innerHTML = `
+      <div style="text-align:center;padding:60px;color:var(--red);">
+        Cannot connect to XSHELL API<br>
+        <small style="color:var(--text2)">Run: python XSHELL.py --import ip.txt --filter SMAPP</small>
+      </div>`;
+  }
+}
+
+function renderServers(groups) {
+  const filter = (document.getElementById('filter-input')?.value || '').toUpperCase();
+  let html = '';
+  for (const [gn, svrs] of Object.entries(groups).sort()) {
+    const filtered = filter ? svrs.filter(s => s.name.toUpperCase().includes(filter)) : svrs;
+    if (!filtered.length) continue;
+    const go = filtered.filter(s => s.online).length;
+    html += `<div class="group-title">${gn} (${go}/${filtered.length})</div><div class="server-grid">`;
+    for (const s of filtered) {
+      const cls = s.online ? 'online' : 'offline';
+      const actionBtn = s.online
+        ? `<button class="s-btn" onclick="event.stopPropagation();selectServer('${s.name}')">Command</button>
+           <button class="s-btn disconnect" onclick="event.stopPropagation();disconnectServer('${s.name}')">Disconnect</button>`
+        : `<button class="s-btn connect" onclick="event.stopPropagation();connectServer('${s.name}')">Connect</button>`;
+      html += `
+        <div class="server-card ${cls}">
+          <div class="s-header">
+            <span class="s-name">${s.name}</span>
+            <span class="s-status ${cls}">${s.online ? 'ONLINE' : 'OFFLINE'}</span>
+          </div>
+          <div class="s-info">${s.host}:${s.port} @${s.username}</div>
+          <div class="s-actions">${actionBtn}</div>
+        </div>`;
+    }
+    html += '</div>';
+  }
+  document.getElementById('server-list').innerHTML = html;
+}
+
+function filterServers() {
+  if (window._groups) renderServers(window._groups);
+}
+
+async function connectServer(name) {
+  addLog('cmd', `Connecting: ${name}`);
+  try {
+    const res = await fetch(API + '/open', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filter: name }),
+    });
+    const data = await res.json();
+    addLog('result', `Opened: ${(data.opened || []).join(', ') || 'none'}`);
+    setTimeout(refreshStatus, 2000);
+  } catch (e) {
+    addLog('error', e.message);
+  }
+}
+
+async function disconnectServer(name) {
+  addLog('cmd', `Disconnecting: ${name}`);
+  try {
+    const res = await fetch(API + '/close', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ server: name }),
+    });
+    await res.json();
+    addLog('result', `Closed: ${name}`);
+    setTimeout(refreshStatus, 1000);
+  } catch (e) {
+    addLog('error', e.message);
+  }
+}
+
+async function connectFiltered() {
+  const filter = document.getElementById('filter-input').value.trim();
+  if (!filter) { alert('Enter a filter keyword first'); return; }
+  addLog('cmd', `Batch connect: filter="${filter}"`);
+  try {
+    const res = await fetch(API + '/open', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filter }),
+    });
+    const data = await res.json();
+    addLog('result', `Opened ${(data.opened || []).length} sessions`);
+    setTimeout(refreshStatus, 3000);
+  } catch (e) {
+    addLog('error', e.message);
+  }
+}
+
+async function disconnectAll() {
+  if (!confirm('Disconnect all sessions?')) return;
+  addLog('cmd', 'Disconnecting all sessions');
+  for (const s of sessions.filter(s => s.connected)) {
+    try {
+      await fetch(API + '/close', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ server: s.name }),
+      });
+    } catch (e) {}
+  }
+  addLog('result', 'All sessions closed');
+  setTimeout(refreshStatus, 1000);
+}
+
+function selectServer(name) {
+  switchTab('command');
+  document.getElementById('cmd-target').value = name;
+  document.getElementById('cmd-input').focus();
+}
+
+// ── Command Execution ──
+function isDangerous(cmd) {
+  const lc = cmd.toLowerCase().trim();
+  return DANGEROUS.some(d => lc.startsWith(d) || lc.includes(d));
+}
+
+function sendCmd() {
+  const target = document.getElementById('cmd-target').value;
+  const cmd = document.getElementById('cmd-input').value.trim();
+  if (!cmd) return;
+
+  if (isDangerous(cmd)) {
+    pendingCmd = { target, cmd };
+    const targetLabel = target === '__all__' ? 'ALL online sessions' : target;
+    document.getElementById('confirm-msg').innerHTML =
+      `You are about to execute a potentially dangerous command:<br><br>` +
+      `<code>${escHtml(cmd)}</code><br><br>` +
+      `Target: <strong>${targetLabel}</strong><br><br>Are you sure?`;
+    document.getElementById('confirm-dialog').classList.add('show');
+    return;
+  }
+
+  executeCmd(target, cmd);
+}
+
+function cancelConfirm() {
+  pendingCmd = null;
+  document.getElementById('confirm-dialog').classList.remove('show');
+}
+
+function doConfirm() {
+  document.getElementById('confirm-dialog').classList.remove('show');
+  if (pendingCmd) {
+    executeCmd(pendingCmd.target, pendingCmd.cmd);
+    pendingCmd = null;
+  }
+}
+
+async function executeCmd(target, cmd) {
+  const out = document.getElementById('cmd-output');
+  const isAll = target === '__all__';
+  const label = isAll ? 'BROADCAST' : target;
+
+  out.innerHTML += `\n<span class="info">──── ${new Date().toLocaleTimeString()} ────</span>\n`;
+  out.innerHTML += `<span class="srv">[${label}]</span> $ ${escHtml(cmd)}\n`;
+  addLog(isAll ? 'broadcast' : 'cmd', `[${label}] ${cmd}`);
+
+  try {
+    let data;
+    if (isAll) {
+      const res = await fetch(API + '/exec_all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: cmd, wait: 3 }),
+      });
+      data = await res.json();
+      for (const [srv, output] of Object.entries(data.results || {})) {
+        const clean = cleanAnsi(output);
+        out.innerHTML += `<span class="srv">[${srv}]</span>\n${escHtml(clean)}\n`;
+        addLog('result', `[${srv}] ${clean.split('\\n')[0].substring(0, 100)}`);
+      }
+      out.innerHTML += `<span class="info">── ${data.count} servers responded ──</span>\n`;
+    } else {
+      const res = await fetch(API + '/exec_wait', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ server: target, command: cmd, wait: 3 }),
+      });
+      data = await res.json();
+      if (data.error) {
+        out.innerHTML += `<span class="err">${escHtml(data.error)}</span>\n`;
+        addLog('error', data.error);
+      } else {
+        const clean = cleanAnsi(data.output || '');
+        out.innerHTML += escHtml(clean) + '\n';
+        addLog('result', `[${data.server}] ${clean.split('\\n')[0].substring(0, 100)}`);
+      }
+    }
+  } catch (err) {
+    out.innerHTML += `<span class="err">Error: ${escHtml(err.message)}</span>\n`;
+    addLog('error', err.message);
+  }
+
+  out.scrollTop = out.scrollHeight;
+  document.getElementById('cmd-input').value = '';
+  document.getElementById('cmd-input').focus();
+}
+
+function cleanAnsi(s) {
+  return s.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\r\n/g, '\n').replace(/\r/g, '');
+}
+
+// ── Chat ──
+let chatBusy = false;
+
+async function chatSend(msg) {
+  const input = document.getElementById('chat-input');
+  const message = msg || input.value.trim();
+  if (!message || chatBusy) return;
+
+  input.value = '';
+  chatBusy = true;
+  document.getElementById('chat-send-btn').disabled = true;
+
+  // Add user message
+  const msgArea = document.getElementById('chat-messages');
+  msgArea.innerHTML += `<div class="chat-msg user">${escHtml(message)}<div class="msg-time">${new Date().toLocaleTimeString()}</div></div>`;
+  msgArea.scrollTop = msgArea.scrollHeight;
+
+  // Show typing
+  document.getElementById('chat-typing').classList.add('show');
+
+  addLog('cmd', `[Chat] ${message}`);
+
+  try {
+    const res = await fetch(API + '/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    });
+    const data = await res.json();
+    const reply = data.reply || data.error || 'No response';
+
+    // Format reply (convert markdown-like to simple HTML)
+    const formatted = escHtml(reply)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/`(.+?)`/g, '<code style="background:var(--bg4);padding:1px 4px;border-radius:3px;">$1</code>');
+
+    msgArea.innerHTML += `<div class="chat-msg assistant">${formatted}<div class="msg-time">${new Date().toLocaleTimeString()}</div></div>`;
+    addLog('result', `[Chat] ${reply.substring(0, 100)}`);
+  } catch (err) {
+    msgArea.innerHTML += `<div class="chat-msg assistant" style="border-color:var(--red);">❌ 连接失败: ${escHtml(err.message)}</div>`;
+    addLog('error', `[Chat] ${err.message}`);
+  }
+
+  document.getElementById('chat-typing').classList.remove('show');
+  chatBusy = false;
+  document.getElementById('chat-send-btn').disabled = false;
+  msgArea.scrollTop = msgArea.scrollHeight;
+  input.focus();
+}
+
+// Load chat history on init
+async function loadChatHistory() {
+  try {
+    const res = await fetch(API + '/chat/history');
+    const data = await res.json();
+    if (data.history && data.history.length) {
+      const msgArea = document.getElementById('chat-messages');
+      for (const h of data.history) {
+        const cls = h.role === 'user' ? 'user' : 'assistant';
+        const content = escHtml(h.content).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        msgArea.innerHTML += `<div class="chat-msg ${cls}">${content}<div class="msg-time">${h.timestamp}</div></div>`;
+      }
+      msgArea.scrollTop = msgArea.scrollHeight;
+    }
+  } catch (e) {}
+}
+
+// ── Init ──
+refreshStatus();
+setInterval(refreshStatus, 10000);
+loadChatHistory();
+</script>
+</body>
+</html>
