@@ -283,13 +283,81 @@ npx remotex batch-cat <group> <path>             # Batch read file
 npx remotex batch-replace <group> <path> <old> <new>  # Batch replace
 ```
 
-## Firewall
+## Network Access
 
-To access from mobile, open ports on your PC:
-```
+### Same Network (LAN)
+
+Mobile and PC on the same WiFi/network:
+
+1. Open firewall ports on PC:
+```bash
 netsh advfirewall firewall add rule name="RemoteX HTTP" dir=in action=allow protocol=TCP localport=9876
 netsh advfirewall firewall add rule name="RemoteX WebSocket" dir=in action=allow protocol=TCP localport=9877
 ```
+
+2. Find your PC's local IP:
+```bash
+ipconfig    # Look for 192.168.x.x or 10.x.x.x
+```
+
+3. Access from phone:
+```
+http://192.168.x.x:9876/terminal
+```
+
+### Remote Access (Different Network / Internet)
+
+To access RemoteX from anywhere (different WiFi, cellular, remote location), use **[Tailscale](https://tailscale.com)** -- a free mesh VPN that creates a secure tunnel between your devices.
+
+#### Setup
+
+1. **Install Tailscale on PC:**
+```bash
+winget install Tailscale.Tailscale
+```
+
+2. **Install Tailscale on phone:**
+   - iOS: [App Store](https://apps.apple.com/app/tailscale/id1470499037)
+   - Android: [Google Play](https://play.google.com/store/apps/details?id=com.tailscale.ipn)
+
+3. **Login with the same account** on both devices (Google/Microsoft/GitHub)
+
+4. **Find your PC's Tailscale IP:**
+```bash
+tailscale ip    # Returns 100.x.x.x
+```
+
+5. **Access from phone** (works from anywhere):
+```
+http://100.x.x.x:9876/terminal
+```
+
+#### Why Tailscale?
+
+- **Zero config** -- no port forwarding, no dynamic DNS, no public IP needed
+- **End-to-end encrypted** -- WireGuard-based, traffic never passes through a relay
+- **Works through NAT** -- office firewalls, hotel WiFi, cellular networks
+- **Free** for personal use (up to 100 devices)
+- **Always on** -- once set up, your phone can always reach your PC
+
+#### Alternative: Cloudflare Tunnel
+
+If you have a domain name and prefer HTTPS access:
+
+```bash
+# Install
+winget install Cloudflare.cloudflared
+
+# Create tunnel
+cloudflared tunnel login
+cloudflared tunnel create remotex
+cloudflared tunnel route dns remotex ssh.yourdomain.com
+
+# Run (add to startup for persistence)
+cloudflared tunnel run --url http://localhost:9876 remotex
+```
+
+Then access from anywhere: `https://ssh.yourdomain.com/terminal`
 
 ## License
 
